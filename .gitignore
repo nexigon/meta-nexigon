@@ -1,0 +1,5 @@
+.vscode
+.venv
+_kas
+cache
+build
