@@ -25,7 +25,7 @@ RUSTFLAGS:append = " --remap-path-prefix=${TMPDIR}=/usr/src/debug/${PN}/${PV}"
 # References:
 # https://doc.rust-lang.org/cargo/reference/profiles.html#strip
 # https://doc.rust-lang.org/cargo/reference/config.html#command-line-overrides
-CARGO_BUILD_FLAGS:append = " --config 'profile.release.strip=\"none\"'"
+CARGO_BUILD_FLAGS:append = " --config 'profile.release.strip="none"'"
 
 # Remove unsupported panic mode from Cargo build.
 cargo_do_compile:prepend:class-target() {
