@@ -51,6 +51,5 @@ repos:
       meta-filesystems:
 
   meta-nexigon:
-    path: ../
     layers:
       meta-nexigon-core:

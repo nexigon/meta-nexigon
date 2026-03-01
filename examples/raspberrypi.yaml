@@ -58,6 +58,5 @@ repos:
       meta-rugix-rpi-tryboot:
 
   meta-nexigon:
-    path: ../
     layers:
       meta-nexigon-core:
