@@ -2,7 +2,7 @@
 header:
   version: 14
   includes:
-    - examples/include/common.yaml
+    - examples/include/rugix.yaml
 
 local_conf_header:
   raspberrypi: |

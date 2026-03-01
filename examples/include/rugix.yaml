@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/siemens/kas/refs/heads/master/kas/schema-kas.json
+
+header:
+  version: 14
+  includes:
+    - examples/include/base.yaml
+
+local_conf_header:
+  include-common: |
+    # Rugix-specific configuration.
+    DISTRO_FEATURES:append = " rugix "
+    IMAGE_INSTALL:append = " rugix-ctrl-bin rugix-bootstrapping-conf "

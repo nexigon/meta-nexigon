@@ -4,7 +4,7 @@ header:
   version: 14
 
 local_conf_header:
-  include-common: |
+  include-base: |
     # Basic system configuration.
     PACKAGE_CLASSES = "package_deb"
     IMAGE_FEATURES:append = " package-management"
@@ -16,7 +16,7 @@ local_conf_header:
     # Add `/etc/buildinfo` file with information about the build.
     INHERIT += "image-buildinfo"
     IMAGE_BUILDINFO_FILE = "${sysconfdir}/buildinfo"
-    IMAGE_BUILDINFO_VARS:append = " DATETIME DISTRO_NAME IMAGE_BASENAME IMAGE_NAME IMAGE_NAME_SUFFIX MACHINE TUNE_PKGARCH" 
+    IMAGE_BUILDINFO_VARS:append = " DATETIME DISTRO_NAME IMAGE_BASENAME IMAGE_NAME IMAGE_NAME_SUFFIX MACHINE TUNE_PKGARCH"
     IMAGE_BUILDINFO_VARS:append = " MACHINE_FEATURES DISTRO_FEATURES COMMON_FEATURES IMAGE_FEATURES"
     IMAGE_BUILDINFO_VARS:append = " TUNE_FEATURES TARGET_FPU"
     IMAGE_BUILDINFO_VARS:append = " DEVICE_MODEL"
@@ -25,9 +25,5 @@ local_conf_header:
     IMAGE_INSTALL:append = " networkmanager"
     PACKAGECONFIG:append:pn-systemd = " networkd resolved"
 
-    # Rugix-specific configuration.
-    DISTRO_FEATURES:append = " rugix "
-    IMAGE_INSTALL:append = " rugix-ctrl-bin rugix-bootstrapping-conf "
-
     # Nexigon-specific configuration.
-    IMAGE_INSTALL:append = " nexigon-agent-bin "
+    IMAGE_INSTALL:append = " nexigon-agent nexigon-agent-service nexigon-agent-conf "

@@ -1,5 +1,6 @@
-.vscode
-.venv
 _kas
-cache
+.claude
+.venv
+.vscode
 build
+cache

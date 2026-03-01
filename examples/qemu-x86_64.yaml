@@ -1,0 +1,56 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/siemens/kas/refs/heads/master/kas/schema-kas.json
+#
+# Builds a QEMU x86_64 image with Nexigon Agent for testing.
+#
+# No Rugix/A/B update support — just a simple VM image.
+#
+# Build:
+#   just build examples/qemu-x86_64.yaml
+#
+# Run (with user-mode networking for internet access):
+#   just kas shell examples/qemu-x86_64.yaml -c "runqemu qemux86-64 core-image-minimal nographic slirp"
+#
+# To connect to Nexigon Hub, set NEXIGON_HUB_URL and NEXIGON_TOKEN
+# in the `nexigon` local_conf_header section below.
+
+header:
+  version: 14
+  includes:
+    - examples/include/base.yaml
+
+local_conf_header:
+  nexigon: |
+    # Configure Nexigon Agent connection to a Hub instance.
+    # NEXIGON_HUB_URL = "https://eu.nexigon.cloud"
+    # NEXIGON_TOKEN = "deployment_..."
+
+machine: qemux86-64
+distro: poky
+target:
+  - core-image-minimal
+
+defaults:
+  repos:
+    branch: scarthgap
+
+repos:
+  poky:
+    url: https://github.com/yoctoproject/poky.git
+    layers:
+      meta:
+      meta-poky:
+      meta-yocto-bsp:
+
+  meta-openembedded:
+    url: "https://github.com/openembedded/meta-openembedded.git"
+    layers:
+      meta-oe:
+      meta-python:
+      meta-networking:
+      meta-multimedia:
+      meta-filesystems:
+
+  meta-nexigon:
+    path: ../
+    layers:
+      meta-nexigon-core:
