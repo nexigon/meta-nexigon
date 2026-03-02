@@ -50,6 +50,10 @@ repos:
       meta-multimedia:
       meta-filesystems:
 
+  meta-lts-mixins-rust:
+    url: "https://git.yoctoproject.org/meta-lts-mixins"
+    branch: scarthgap/rust
+
   meta-nexigon:
     layers:
       meta-nexigon-core:
