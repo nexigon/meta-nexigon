@@ -2,7 +2,7 @@
 
 This repository provides Yocto layers for integrating [Nexigon](https://nexigon.dev) into a custom, [Yocto-based](https://www.yoctoproject.org) Linux distribution tailored to your embedded device.
 
-### Recipes
+**Recipes:**
 
 - **`nexigon-agent`** — Builds the Nexigon Agent from source (Rust/Cargo).
 - **`nexigon-agent-service`** — Systemd service unit and device fingerprint script.
@@ -23,9 +23,11 @@ local_conf_header:
     NEXIGON_TOKEN = "deployment_..."
 ```
 
-## License
+## Licensing
 
-Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or [MIT License](LICENSE-MIT), at your option.
+This project is licensed under either [MIT](LICENSE-MIT) or [Apache 2.0](LICENSE-APACHE) at your option.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this project by you, as defined in the Apache 2.0 license, shall be dual licensed as above, without any additional terms or conditions.
 
 ---
 
