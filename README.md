@@ -2,12 +2,6 @@
 
 This repository provides Yocto layers for integrating [Nexigon](https://nexigon.dev) into a custom, [Yocto-based](https://www.yoctoproject.org) Linux distribution tailored to your embedded device.
 
-## Layers
-
-| Layer               | Compatible Releases | Description                    |
-| ------------------- | ------------------- | ------------------------------ |
-| `meta-nexigon-core` | Scarthgap           | Core recipes for Nexigon Agent |
-
 ### Recipes
 
 - **`nexigon-agent`** — Builds the Nexigon Agent from source (Rust/Cargo).
