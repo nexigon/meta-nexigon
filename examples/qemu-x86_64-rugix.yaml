@@ -1,14 +1,9 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/siemens/kas/refs/heads/master/kas/schema-kas.json
 #
-# Builds a QEMU x86_64 image with Nexigon Agent for testing.
-#
-# No Rugix/A/B update support — just a simple VM image.
+# Builds a QEMU x86_64 image with Nexigon Agent and Rugix A/B updates.
 #
 # Build:
-#   just build examples/qemu-x86_64.yaml
-#
-# Run (with user-mode networking for internet access):
-#   just kas shell examples/qemu-x86_64.yaml -c "runqemu qemux86-64 core-image-minimal nographic slirp"
+#   just build examples/qemu-x86_64-rugix.yaml
 #
 # To connect to Nexigon Hub, set NEXIGON_HUB_URL and NEXIGON_TOKEN
 # environment variables (e.g., via a `.env` file).
@@ -16,7 +11,13 @@
 header:
   version: 14
   includes:
-    - examples/include/base.yaml
+    - examples/include/rugix.yaml
+
+local_conf_header:
+  image-conf: |
+    IMAGE_FSTYPES = "tar.bz2 wic wic.bmap"
+    # Build OVMF firmware for QEMU pflash.
+    EXTRA_IMAGEDEPENDS += "ovmf"
 
 machine: qemux86-64
 distro: poky
@@ -48,6 +49,18 @@ repos:
     url: "https://git.yoctoproject.org/meta-lts-mixins"
     branch: scarthgap/rust
 
+  meta-lts-mixins-uboot:
+    url: "https://git.yoctoproject.org/meta-lts-mixins"
+    branch: scarthgap/u-boot
+
+  meta-rugix:
+    url: "https://github.com/silitics/meta-rugix.git"
+    branch: main
+    layers:
+      meta-rugix-core:
+      meta-rugix-qemu-x86_64-grub:
+
   meta-nexigon:
     layers:
       meta-nexigon-core:
+      meta-nexigon-rugix:

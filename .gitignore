@@ -1,6 +1,14 @@
 _kas
 .claude
+.env
 .venv
 .vscode
 build
 cache
+test-outputs
+
+__pycache__
+
+.devenv*
+.direnv
+.pytest_cache

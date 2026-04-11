@@ -3,13 +3,17 @@
 header:
   version: 14
 
+env:
+  NEXIGON_HUB_URL: ""
+  NEXIGON_TOKEN: ""
+
 local_conf_header:
   include-base: |
     # Basic system configuration.
     PACKAGE_CLASSES = "package_deb"
     IMAGE_FEATURES:append = " package-management"
     VOLATILE_LOG_DIR = "no"
-    IMAGE_INSTALL:append = " gnupg"
+    IMAGE_INSTALL:append = " ca-certificates"
     EXTRA_IMAGE_FEATURES:append = " debug-tweaks ssh-server-dropbear"
     INIT_MANAGER="systemd"
 
