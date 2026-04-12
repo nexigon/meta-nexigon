@@ -15,7 +15,10 @@ local_conf_header:
     LICENSE_FLAGS_ACCEPTED = "synaptics-killswitch"
 
   image-conf: |
-    IMAGE_FSTYPES = "tar.bz2 wic wic.bmap rugixb rugixb.hash"
+    # Image ID used to identify the correct update artifacts.
+    IMAGE_ID = "example-rpi-rugix"
+    # Filesystem types including the Rugix update bundle.
+    IMAGE_FSTYPES = "tar.bz2 wic wic.xz wic.bmap rugixb rugixb.hash"
     # Override the A/B system partition size (default: 4GiB).
     # RUGIX_SYSTEM_SIZE = "4GiB"
 
