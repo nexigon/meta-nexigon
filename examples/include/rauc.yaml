@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/siemens/kas/refs/heads/master/kas/schema-kas.json
+
+header:
+  version: 14
+  includes:
+    - examples/include/base.yaml
+
+env:
+  RAUC_KEYS_DIR: "rauc-keys"
+
+local_conf_header:
+  nexigon-rauc-config: |
+    # Enable RAUC distro feature.
+    DISTRO_FEATURES:append = " rauc"
+    # Install RAUC and Nexigon OTA tooling.
+    IMAGE_INSTALL:append = " rauc nexigon-rauc-ota"
+    # Persist agent identity across A/B slot switches.
+    NEXIGON_AGENT_SSL_DIR = "/data/nexigon/agent/ssl"
+    NEXIGON_DEVICE_FINGERPRINT = "random-uuid"
+    NEXIGON_DEVICE_FINGERPRINT_FILE = "/data/nexigon/agent/device-fingerprint"
+  rauc-keys: |
+    # Development signing keys (run `just generate-rauc-keys` first).
+    RAUC_KEY_FILE = "${RAUC_KEYS_DIR}/development-1.key.pem"
+    RAUC_CERT_FILE = "${RAUC_KEYS_DIR}/development-1.cert.pem"
+    RAUC_KEYRING_FILE = "${RAUC_KEYS_DIR}/ca.cert.pem"

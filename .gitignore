@@ -5,10 +5,11 @@ _kas
 .vscode
 build
 cache
+rauc-keys
 test-outputs
 
 __pycache__
 
 .devenv*
 .direnv
-.pytest_cache
+.*_cache

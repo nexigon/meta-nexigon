@@ -15,7 +15,7 @@ env:
   IMAGE_VERSION: "dev"
 
 local_conf_header:
-  include-base: |
+  base-config: |
     # Basic system configuration.
     PACKAGE_CLASSES = "package_deb"
     IMAGE_FEATURES:append = " package-management"

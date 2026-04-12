@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+FINGERPRINT_FILE="@@NEXIGON_DEVICE_FINGERPRINT_FILE@@"
+
+if [ ! -f "$FINGERPRINT_FILE" ]; then
+    mkdir -p "$(dirname "$FINGERPRINT_FILE")"
+    cat /proc/sys/kernel/random/uuid | tr -d '-' > "$FINGERPRINT_FILE"
+fi
+
+cat "$FINGERPRINT_FILE"

@@ -1,0 +1,10 @@
+[Unit]
+Description=Nexigon RAUC OTA Update Timer
+
+[Timer]
+OnBootSec=60
+OnUnitActiveSec=@@INTERVAL@@
+Persistent=true
+
+[Install]
+WantedBy=timers.target

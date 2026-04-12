@@ -1,4 +1,4 @@
-"""Tests for the OTA update check via nexigon-rugix-ota."""
+"""Tests for the Rugix OTA update via nexigon-rugix-ota."""
 
 from __future__ import annotations
 
@@ -10,7 +10,11 @@ from nexigon_hub_sdk import Client
 from nexigon_hub_sdk.api_types import devices
 from rugix_testkit import RugixCtrl, VMHandle
 
+import pytest
+
 from conftest import OtaTestEnv
+
+pytestmark = pytest.mark.rugix
 
 
 def _disable_ota_timer(vm: VMHandle) -> None:
@@ -74,6 +78,9 @@ def test_ota_update_install(
 
     _disable_ota_timer(vm)
     ota_test_env.configure_vm(vm, v2)
+
+    # Wait for the agent to reconnect after reboot.
+    vm.run(["nexigon-agent", "device", "id"], hide=True)
 
     vm.run(["/usr/bin/nexigon-rugix-ota"], hide=True)
 

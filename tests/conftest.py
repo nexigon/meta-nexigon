@@ -16,16 +16,23 @@ import httpx
 import pytest
 
 from nexigon_hub_sdk import Client
-from nexigon_hub_sdk.api_types import devices, digest, projects, repositories
+from nexigon_hub_sdk.api_types import (
+    devices,
+    digest,
+    json as json_types,
+    projects,
+    repositories,
+)
 from rugix_testkit import Drive, Pflash, VMConfig, VMHandle
 
 logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-DEPLOY_SUBDIR = "tmp/deploy/images/qemux86-64"
 IMAGE_NAME = "core-image-minimal-qemux86-64.rootfs.wic"
-BUNDLE_NAME = "core-image-minimal-qemux86-64.rootfs.rugixb"
+IMAGE_BASENAME = "core-image-minimal-qemux86-64.rootfs"
+
+DEPLOY_SUBDIR = "tmp/deploy/images/qemux86-64"
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -36,18 +43,28 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
 
 
+def pytest_configure(config: pytest.Config) -> None:
+    config.addinivalue_line("markers", "rugix: tests requiring a Rugix image")
+    config.addinivalue_line("markers", "rauc: tests requiring a RAUC image")
+
+
 def pytest_collection_modifyitems(
     config: pytest.Config, items: list[pytest.Item]
 ) -> None:
     build = Path(os.environ.get("KAS_BUILD_DIR", str(PROJECT_ROOT / "build")))
-    image = build / DEPLOY_SUBDIR / IMAGE_NAME
-    if not image.exists():
-        skip = pytest.mark.skip(reason=f"QEMU image not built: {image}")
-        for item in items:
-            if "vm" in getattr(item, "fixturenames", ()) or "device_id" in getattr(
-                item, "fixturenames", ()
-            ):
-                item.add_marker(skip)
+    deploy = build / DEPLOY_SUBDIR
+
+    has_rugix = bool(list(deploy.glob("*.rugixb")))
+    has_rauc = bool(list(deploy.glob("*.raucb")))
+    has_image = (deploy / IMAGE_NAME).exists()
+
+    for item in items:
+        if not has_image and ("vm" in getattr(item, "fixturenames", ())):
+            item.add_marker(pytest.mark.skip(reason="QEMU image not built"))
+        elif item.get_closest_marker("rugix") and not has_rugix:
+            item.add_marker(pytest.mark.skip(reason="Rugix image not built"))
+        elif item.get_closest_marker("rauc") and not has_rauc:
+            item.add_marker(pytest.mark.skip(reason="RAUC image not built"))
 
 
 @pytest.hookimpl(wrapper=True)
@@ -98,20 +115,28 @@ def build_dir() -> Path:
 
 
 @pytest.fixture
-def vm(build_dir: Path, request: pytest.FixtureRequest) -> Generator[VMHandle]:
-    deploy = build_dir / DEPLOY_SUBDIR
+def deploy_dir(build_dir: Path) -> Path:
+    """Deploy directory for the QEMU image."""
+    path = build_dir / DEPLOY_SUBDIR
+    if not (path / IMAGE_NAME).exists():
+        pytest.skip(f"QEMU image not built: {path / IMAGE_NAME}")
+    return path
+
+
+@pytest.fixture
+def vm(deploy_dir: Path, request: pytest.FixtureRequest) -> Generator[VMHandle]:
     config = VMConfig(
         arch="x86_64",
         drives=[
             Drive(
-                file=deploy / IMAGE_NAME,
+                file=deploy_dir / IMAGE_NAME,
                 overlay=True,
                 size="16G",
             ),
         ],
         pflash=[
-            Pflash(file=deploy / "ovmf.code.qcow2", format="qcow2", readonly=True),
-            Pflash(file=deploy / "ovmf.vars.qcow2", format="qcow2"),
+            Pflash(file=deploy_dir / "ovmf.code.qcow2", format="qcow2", readonly=True),
+            Pflash(file=deploy_dir / "ovmf.vars.qcow2", format="qcow2"),
         ],
     )
     with VMHandle.start(config) as handle:
@@ -138,14 +163,29 @@ class OtaTestEnv:
     repository_id: repositories.RepositoryId
     package_id: repositories.PackageId
     image_id: str
+    bundle_ext: str
+    config_path: str
     v1_version_id: repositories.PackageVersionId
     _version_ids: list[repositories.PackageVersionId]
     _hub: Client
-    _build_dir: Path
+    _deploy_dir: Path
 
     @property
     def v1(self) -> str:
         return f"{self.test_id}-v1"
+
+    def _find_bundle(self) -> Path:
+        """Locate the bundle file in the deploy directory."""
+        # Rugix: IMAGE_BASENAME.rugixb; RAUC: separate bundle recipe output.
+        candidates = list(self._deploy_dir.glob(f"*.{self.bundle_ext}"))
+        # Prefer non-timestamped symlinks.
+        symlinks = [c for c in candidates if c.is_symlink()]
+        result = symlinks[0] if symlinks else candidates[0] if candidates else None
+        if result is None:
+            raise FileNotFoundError(
+                f"No .{self.bundle_ext} bundle found in {self._deploy_dir}"
+            )
+        return result
 
     def configure_vm(self, vm: VMHandle, version: str) -> None:
         """Write the OTA config and IMAGE_VERSION onto the VM."""
@@ -153,7 +193,7 @@ class OtaTestEnv:
             {"path": f"{self.repo_name}/{self.package_name}/{self.test_id}"}
         )
         vm.run(
-            ["sh", "-c", f"echo {shlex.quote(config)} > /etc/nexigon-rugix-ota.json"],
+            ["sh", "-c", f"echo {shlex.quote(config)} > {self.config_path}"],
             hide=True,
         )
         vm.run(
@@ -167,18 +207,13 @@ class OtaTestEnv:
         )
 
     def publish_v2(self, bundle_content: bytes | None = None) -> str:
-        """Create v2 with a rugix bundle and reassign the channel tag.
+        """Create v2 with an update bundle and reassign the channel tag.
 
         If *bundle_content* is given it is uploaded as-is (useful for testing
         corrupt bundles).  Otherwise the real built bundle is used.
         """
         v2 = f"{self.test_id}-v2"
-        bundle_path = self._build_dir / DEPLOY_SUBDIR / BUNDLE_NAME
-        bundle_hash = (
-            (self._build_dir / DEPLOY_SUBDIR / f"{BUNDLE_NAME}.hash")
-            .read_text()
-            .strip()
-        )
+        bundle_path = self._find_bundle()
 
         bundle_data = (
             bundle_content if bundle_content is not None else bundle_path.read_bytes()
@@ -214,15 +249,18 @@ class OtaTestEnv:
         )
         self._version_ids.append(version_output.version_id)
 
+        asset_metadata: dict[str, json_types.JsonValue] = {"version": v2}
+        if self.bundle_ext == "rugixb":
+            hash_path = bundle_path.with_suffix(bundle_path.suffix + ".hash")
+            bundle_hash = hash_path.read_text().strip()
+            asset_metadata["rugix"] = {"bundleHash": bundle_hash}
+
         self._hub.execute(
             repositories.AddPackageVersionAssetAction(
                 version_id=version_output.version_id,
                 asset_id=asset_output.asset_id,
-                filename=f"{self.image_id}.rugixb",
-                metadata={
-                    "version": v2,
-                    "rugix": {"bundleHash": bundle_hash},
-                },
+                filename=f"{self.image_id}.{self.bundle_ext}",
+                metadata=asset_metadata,
             )
         )
         logger.info(
@@ -231,19 +269,32 @@ class OtaTestEnv:
         return v2
 
 
+def _detect_ota_variant(vm: VMHandle) -> tuple[str, str]:
+    """Return (bundle_ext, config_path) based on what's on the VM."""
+    for ext, path in [
+        ("rugixb", "/etc/nexigon-rugix-ota.json"),
+        ("raucb", "/etc/nexigon-rauc-ota.json"),
+    ]:
+        result = vm.run(["test", "-f", path], check=False, hide=True)
+        if result.ok:
+            return ext, path
+    pytest.fail("No OTA config found (neither rugix nor rauc)")
+    raise AssertionError
+
+
 @pytest.fixture
-def ota_test_env(hub: Client, vm: VMHandle, build_dir: Path) -> Generator[OtaTestEnv]:
+def ota_test_env(hub: Client, vm: VMHandle, deploy_dir: Path) -> Generator[OtaTestEnv]:
     """Set up an isolated OTA test environment.
 
-    Creates a ``test-<id>`` channel tag, a v1 version tagged with both
-    ``test-<id>`` and ``test-<id>-v1``, rewrites the VM's OTA config to
-    point at the channel tag, and sets ``IMAGE_VERSION`` to v1.
+    Auto-detects whether the image uses Rugix or RAUC.  Creates a
+    ``test-<id>`` channel tag, a v1 version tagged with both ``test-<id>``
+    and ``test-<id>-v1``, rewrites the VM's OTA config to point at the
+    channel tag, and sets ``IMAGE_VERSION`` to v1.
     """
     test_id = f"test-{uuid.uuid4().hex[:12]}"
+    bundle_ext, config_path = _detect_ota_variant(vm)
 
-    ota_config = json.loads(
-        vm.run(["cat", "/etc/nexigon-rugix-ota.json"], hide=True).stdout
-    )
+    ota_config = json.loads(vm.run(["cat", config_path], hide=True).stdout)
     repo_name, package_name, _tag = ota_config["path"].split("/")
 
     image_id = vm.run(
@@ -276,10 +327,12 @@ def ota_test_env(hub: Client, vm: VMHandle, build_dir: Path) -> Generator[OtaTes
         repository_id=resolved.repository_id,
         package_id=resolved.package_id,
         image_id=image_id,
+        bundle_ext=bundle_ext,
+        config_path=config_path,
         v1_version_id=version_output.version_id,
         _version_ids=version_ids,
         _hub=hub,
-        _build_dir=build_dir,
+        _deploy_dir=deploy_dir,
     )
     env.configure_vm(vm, v1)
     logger.info("OTA env %s ready (v1=%s)", test_id, version_output.version_id)

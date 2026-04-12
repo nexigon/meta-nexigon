@@ -9,7 +9,9 @@ export DL_DIR := env("DL_DIR", justfile_directory() + "/cache/downloads")
 _uv_run := "uv run --with 'rugix-testkit @ git+https://github.com/rugix/rugix-testkit.git' --with 'nexigon-hub-sdk @ git+https://github.com/nexigon/nexigon.git#subdirectory=sdks/python' --with pytest --with pytest-timeout"
 _uv_dev := "uv run --with ruff --with mypy --with pytest --with 'nexigon-hub-sdk @ git+https://github.com/nexigon/nexigon.git#subdirectory=sdks/python' --with 'rugix-testkit @ git+https://github.com/rugix/rugix-testkit.git'"
 
-_kas_env := "-e IMAGE_VERSION -e NEXIGON_HUB_URL -e NEXIGON_TOKEN -e NEXIGON_OTA_REPOSITORY -e NEXIGON_OTA_PACKAGE -e NEXIGON_OTA_TAG"
+export RAUC_KEYS_DIR := "/repo/rauc-keys"
+
+_kas_env := "-e IMAGE_VERSION -e NEXIGON_HUB_URL -e NEXIGON_TOKEN -e NEXIGON_OTA_REPOSITORY -e NEXIGON_OTA_PACKAGE -e NEXIGON_OTA_TAG -e RAUC_KEYS_DIR"
 
 _deploy_dir := KAS_BUILD_DIR + "/tmp/deploy/images"
 
@@ -77,6 +79,30 @@ fmt:
 # Run type checking on tests.
 typecheck:
     {{ _uv_dev }} mypy tests/
+
+_rauc_keys_dir := justfile_directory() + "/rauc-keys"
+
+# Generate development signing keys for RAUC.
+generate-rauc-keys:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    dir="{{_rauc_keys_dir}}"
+    if [ -f "$dir/ca.cert.pem" ]; then
+        echo "Keys already exist in $dir — delete the directory to regenerate."
+        exit 0
+    fi
+    mkdir -p "$dir"
+    openssl req -x509 -newkey rsa:4096 -nodes \
+        -keyout "$dir/ca.key.pem" -out "$dir/ca.cert.pem" \
+        -subj "/CN=Nexigon Dev CA" -days 3650
+    openssl req -newkey rsa:4096 -nodes \
+        -keyout "$dir/development-1.key.pem" -out "$dir/development-1.csr.pem" \
+        -subj "/CN=Nexigon Dev Signing Key"
+    openssl x509 -req -CAkey "$dir/ca.key.pem" -CA "$dir/ca.cert.pem" \
+        -CAcreateserial -in "$dir/development-1.csr.pem" \
+        -out "$dir/development-1.cert.pem" -days 3650
+    rm -f "$dir/development-1.csr.pem" "$dir/ca.srl"
+    echo "RAUC development keys generated in $dir"
 
 # Run all checks (lint, typecheck).
 check: lint typecheck

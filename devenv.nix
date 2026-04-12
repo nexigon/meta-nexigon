@@ -13,5 +13,6 @@
     qemu
     uv
     just
+    openssl
   ];
 }

@@ -1,27 +1,28 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/siemens/kas/refs/heads/master/kas/schema-kas.json
 #
-# Builds a QEMU x86_64 image with Nexigon Agent and Rugix A/B updates.
+# Builds a QEMU x86_64 image with Nexigon Agent and RAUC A/B updates.
 
 header:
   version: 14
   includes:
-    - examples/include/rugix.yaml
+    - examples/include/rauc.yaml
 
 local_conf_header:
   image-conf: |
     # Image ID used to identify the correct update artifacts.
-    IMAGE_ID = "example-qemu-x86_64-rugix"
-    # Filesystem types including the Rugix update bundle.
-    IMAGE_FSTYPES = "tar.bz2 wic wic.xz wic.bmap rugixb rugixb.hash"
-    # Override the A/B system partition size (default: 4GiB).
-    # RUGIX_SYSTEM_SIZE = "4GiB"
+    IMAGE_ID = "example-qemu-x86_64-rauc"
+    # Filesystem types.
+    IMAGE_FSTYPES = "tar.bz2 wic"
     # Build OVMF firmware for QEMU pflash.
     EXTRA_IMAGEDEPENDS += "ovmf"
+    # Use the RAUC-community GRUB config.
+    PREFERRED_RPROVIDER_virtual-grub-bootconf = "rauc-qemu-grubconf"
 
 machine: qemux86-64
 distro: poky
 target:
   - core-image-minimal
+  - qemu-demo-bundle
 
 defaults:
   repos:
@@ -44,23 +45,22 @@ repos:
       meta-multimedia:
       meta-filesystems:
 
-  # We need a sufficiently recent Rust version to compile Nexigon and Rugix.
+  # We need a sufficiently recent Rust version to compile Nexigon.
   meta-lts-mixins-rust:
     url: "https://git.yoctoproject.org/meta-lts-mixins"
     branch: scarthgap/rust
 
-  meta-lts-mixins-uboot:
-    url: "https://git.yoctoproject.org/meta-lts-mixins"
-    branch: scarthgap/u-boot
+  meta-rauc:
+    url: "https://github.com/rauc/meta-rauc.git"
+    branch: scarthgap
 
-  meta-rugix:
-    url: "https://github.com/rugix/meta-rugix.git"
-    branch: main
+  meta-rauc-community:
+    url: "https://github.com/rauc/meta-rauc-community.git"
+    branch: scarthgap
     layers:
-      meta-rugix-core:
-      meta-rugix-qemu-x86_64-grub:
+      meta-rauc-qemux86:
 
   meta-nexigon:
     layers:
       meta-nexigon-core:
-      meta-nexigon-rugix:
+      meta-nexigon-rauc:

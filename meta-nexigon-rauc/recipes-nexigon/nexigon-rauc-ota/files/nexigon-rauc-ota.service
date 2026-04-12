@@ -1,0 +1,8 @@
+[Unit]
+Description=Nexigon RAUC OTA Update
+Wants=network-online.target
+After=network-online.target nexigon-agent.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/nexigon-rauc-ota

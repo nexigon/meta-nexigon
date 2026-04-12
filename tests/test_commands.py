@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 from rugix_testkit import VMHandle
 
 
@@ -59,6 +61,7 @@ def test_power_reboot(vm: VMHandle) -> None:
     assert result.ok
 
 
+@pytest.mark.rugix
 def test_rugix_apps_dict(vm: VMHandle) -> None:
     """The list command returns a JSON array (possibly empty)."""
     result = vm.run(
