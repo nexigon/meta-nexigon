@@ -40,9 +40,9 @@ record_failure() {
     local message="$1"
     shift
     echo "[ERROR] $message" >&2
-    set_status '.state = "failed" | .failureCount = ((.failureCount // 0) + 1) | .lastError = $msg' \
-        --arg msg "$message"
     emit_event "update failed" "error" "$message" "$@"
+    set_status '.state = "failed" | .failureCount = ((.failureCount // 0) + 1) | .lastError = $msg' \
+        --arg msg "$message"    
 }
 
 if [ -f /etc/rugix/system-build-info.json ]; then
@@ -61,6 +61,9 @@ fi
 echo "[INFO] system: $SYSTEM_NAME, version: $CURRENT_VERSION" >&2
 
 OTA_CONFIG=$(cat /etc/nexigon-rugix-ota.json)
+
+# Read security settings from the local config before cloud merge.
+USE_BUNDLE_HASH=$(echo "$OTA_CONFIG" | jq -r '.rugix.useBundleHash // false')
 
 OTA_CONFIG_PROPERTY=$(nexigon-agent device properties get "dev.nexigon.ota.config")
 
@@ -96,8 +99,8 @@ if [ "$ACTIVE_GROUP" != "$DEFAULT_GROUP" ]; then
     set_status '.state = "committing"'
 
     if rugix-ctrl system commit; then
-        set_status '.state = "completed" | .failureCount = 0 | .lastError = null'
         emit_event "update completed"
+        set_status '.state = "completed" | .failureCount = 0 | .lastError = null'
     fi
     exit 0
 elif [ "$PREV_STATE" == "installing" ] || [ "$PREV_STATE" == "rebooting" ] || [ "$PREV_STATE" == "committing" ]; then
@@ -108,8 +111,8 @@ elif [ "$PREV_STATE" == "installing" ] || [ "$PREV_STATE" == "rebooting" ] || [ 
         exit 0
     else
         echo "[INFO] update completed (committed externally)" >&2
-        set_status '.state = "completed" | .failureCount = 0 | .lastError = null'
         emit_event "update completed"
+        set_status '.state = "completed" | .failureCount = 0 | .lastError = null'
         exit 0
     fi
 fi
@@ -132,9 +135,9 @@ VERSION_HAS_CURRENT=$(echo "$VERSION_INFO" | jq \
 
 if [ "$VERSION_HAS_CURRENT" == "true" ]; then
     echo "[INFO] no updates available" >&2
-    set_status '.state = "completed" | .failureCount = 0 | .lastError = null'
     emit_event "no update available" \
         "currentVersion" "$CURRENT_VERSION"
+    set_status '.state = "completed" | .failureCount = 0 | .lastError = null'
     exit 0
 fi
 
@@ -148,11 +151,15 @@ if [ -z "$BUNDLE_ASSET" ]; then
 fi
 
 TARGET_VERSION=$(echo "$BUNDLE_ASSET" | jq -r '.metadata.version // empty')
-BUNDLE_HASH=$(echo "$BUNDLE_ASSET" | jq -r '.metadata.rugix.bundleHash // empty')
 
-if [ -z "$BUNDLE_HASH" ]; then
-    record_failure "no bundleHash in asset metadata for $SYSTEM_NAME.rugixb"
-    exit 1
+INSTALL_ARGS=()
+if [ "$USE_BUNDLE_HASH" == "true" ]; then
+    BUNDLE_HASH=$(echo "$BUNDLE_ASSET" | jq -r '.metadata.rugix.bundleHash // empty')
+    if [ -z "$BUNDLE_HASH" ]; then
+        record_failure "no bundleHash in asset metadata for $SYSTEM_NAME.rugixb"
+        exit 1
+    fi
+    INSTALL_ARGS+=(--bundle-hash "$BUNDLE_HASH")
 fi
 
 emit_event "update available, installing" \
@@ -168,7 +175,6 @@ fi
 echo "[INFO] installing update to group $TARGET_GROUP" >&2
 
 emit_event "installing update" \
-    "bundleHash" "$BUNDLE_HASH" \
     "activeGroup" "$ACTIVE_GROUP" \
     "targetGroup" "$TARGET_GROUP"
 
@@ -180,7 +186,7 @@ echo "[INFO] installing bundle from $BUNDLE_URL" >&2
 set_status '.state = "installing" | .targetVersion = $version' \
     --arg version "$TARGET_VERSION"
 
-if ! rugix-ctrl update install --bundle-hash "$BUNDLE_HASH" --reboot no "$BUNDLE_URL"; then
+if ! rugix-ctrl update install "${INSTALL_ARGS[@]}" --reboot no "$BUNDLE_URL"; then
     record_failure "rugix-ctrl update install failed"
     exit 1
 fi

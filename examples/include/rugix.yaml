@@ -10,7 +10,9 @@ local_conf_header:
     # Enable Rugix distro feature.
     DISTRO_FEATURES:append = " rugix"
     # Timeout after which a rollback will be triggered if the system doesn't commit.
-    NEXIGON_OTA_WATCHDOG_TIMEOUT = "1800s"
+    NEXIGON_OTA_RUGIX_WATCHDOG_TIMEOUT = "1800s"
+    # Allow updates to be installed through a cloud-provided bundle hash.
+    NEXIGON_OTA_RUGIX_USE_BUNDLE_HASH = "1"
     # Rugix state management takes care of persisting the machine-id.
     NEXIGON_DEVICE_FINGERPRINT = "machine-id"
     # Install Rugix-specific Nexigon tooling.

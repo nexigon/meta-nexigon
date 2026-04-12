@@ -8,7 +8,7 @@ inherit systemd
 
 SYSTEMD_SERVICE:${PN} = "nexigon-rugix-watchdog.timer nexigon-rugix-watchdog.service"
 
-NEXIGON_OTA_WATCHDOG_TIMEOUT ??= "1800s"
+NEXIGON_OTA_RUGIX_WATCHDOG_TIMEOUT ??= "1800s"
 
 SRC_URI = " \
     file://nexigon-rugix-watchdog \
@@ -23,6 +23,6 @@ do_install() {
     install -d ${D}${systemd_system_unitdir}
     install -m 0644 ${WORKDIR}/nexigon-rugix-watchdog.service ${D}${systemd_system_unitdir}/
     install -m 0644 ${WORKDIR}/nexigon-rugix-watchdog.timer ${D}${systemd_system_unitdir}/
-    sed -i "s|@@TIMEOUT@@|${NEXIGON_OTA_WATCHDOG_TIMEOUT}|g" \
+    sed -i "s|@@TIMEOUT@@|${NEXIGON_OTA_RUGIX_WATCHDOG_TIMEOUT}|g" \
         ${D}${systemd_system_unitdir}/nexigon-rugix-watchdog.timer
 }

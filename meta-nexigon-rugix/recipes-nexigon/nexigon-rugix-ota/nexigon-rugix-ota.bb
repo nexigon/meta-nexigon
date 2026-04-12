@@ -13,6 +13,7 @@ NEXIGON_OTA_INTERVAL ??= "4h"
 NEXIGON_OTA_TAG ??= "stable"
 NEXIGON_OTA_REPOSITORY ??= ""
 NEXIGON_OTA_PACKAGE ??= ""
+NEXIGON_OTA_RUGIX_USE_BUNDLE_HASH ??= "0"
 
 SRC_URI = " \
     file://nexigon-rugix-ota \
@@ -45,7 +46,12 @@ do_install() {
     install -m 0644 ${WORKDIR}/nexigon.ota.check.toml ${D}${sysconfdir}/nexigon/agent/commands/
 
     install -d ${D}${sysconfdir}
-    echo '{"path": "${NEXIGON_OTA_REPOSITORY}/${NEXIGON_OTA_PACKAGE}/${NEXIGON_OTA_TAG}"}' \
+    if [ "${NEXIGON_OTA_RUGIX_USE_BUNDLE_HASH}" = "1" ]; then
+        _use_bundle_hash=true
+    else
+        _use_bundle_hash=false
+    fi
+    echo '{"path": "${NEXIGON_OTA_REPOSITORY}/${NEXIGON_OTA_PACKAGE}/${NEXIGON_OTA_TAG}", "rugix": {"useBundleHash": '${_use_bundle_hash}'}}' \
         > ${D}${sysconfdir}/nexigon-rugix-ota.json
 }
 

@@ -188,10 +188,12 @@ class OtaTestEnv:
         return result
 
     def configure_vm(self, vm: VMHandle, version: str) -> None:
-        """Write the OTA config and IMAGE_VERSION onto the VM."""
-        config = json.dumps(
-            {"path": f"{self.repo_name}/{self.package_name}/{self.test_id}"}
+        """Rewrite the OTA config path and IMAGE_VERSION, preserving other settings."""
+        existing = json.loads(
+            vm.run(["cat", self.config_path], hide=True).stdout
         )
+        existing["path"] = f"{self.repo_name}/{self.package_name}/{self.test_id}"
+        config = json.dumps(existing)
         vm.run(
             ["sh", "-c", f"echo {shlex.quote(config)} > {self.config_path}"],
             hide=True,
