@@ -40,9 +40,9 @@ record_failure() {
     local message="$1"
     shift
     echo "[ERROR] $message" >&2
-    set_status '.state = "failed" | .failureCount = ((.failureCount // 0) + 1) | .lastError = $msg' \
-        --arg msg "$message"
     emit_event "update failed" "error" "$message" "$@"
+    set_status '.state = "failed" | .failureCount = ((.failureCount // 0) + 1) | .lastError = $msg' \
+        --arg msg "$message"    
 }
 
 if [ -f /etc/os-release ]; then
@@ -88,8 +88,8 @@ if [ "$PREV_STATE" == "installing" ] || [ "$PREV_STATE" == "rebooting" ]; then
         exit 0
     else
         echo "[INFO] update completed" >&2
-        set_status '.state = "completed" | .failureCount = 0 | .lastError = null'
         emit_event "update completed"
+        set_status '.state = "completed" | .failureCount = 0 | .lastError = null'        
         exit 0
     fi
 fi
@@ -112,9 +112,9 @@ VERSION_HAS_CURRENT=$(echo "$VERSION_INFO" | jq \
 
 if [ "$VERSION_HAS_CURRENT" == "true" ]; then
     echo "[INFO] no updates available" >&2
-    set_status '.state = "completed" | .failureCount = 0 | .lastError = null'
     emit_event "no update available" \
         "currentVersion" "$CURRENT_VERSION"
+    set_status '.state = "completed" | .failureCount = 0 | .lastError = null'
     exit 0
 fi
 
