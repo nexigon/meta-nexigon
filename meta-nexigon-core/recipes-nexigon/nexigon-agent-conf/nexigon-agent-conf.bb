@@ -10,6 +10,9 @@ RDEPENDS:${PN} = "nexigon-agent-service"
 
 NEXIGON_HUB_URL ??= ""
 NEXIGON_TOKEN ??= ""
+NEXIGON_COMMANDS_ENABLED ??= "0"
+NEXIGON_TERMINAL_ENABLED ??= "0"
+NEXIGON_TERMINAL_USER ??= "root"
 NEXIGON_AGENT_EXTRA_CONF ??= ""
 
 do_install() {
@@ -18,6 +21,23 @@ do_install() {
 
     sed -i "s|@@HUB_URL@@|${NEXIGON_HUB_URL}|g" ${D}${sysconfdir}/nexigon/agent.toml
     sed -i "s|@@TOKEN@@|${NEXIGON_TOKEN}|g" ${D}${sysconfdir}/nexigon/agent.toml
+
+    if [ "${NEXIGON_COMMANDS_ENABLED}" = "1" ]; then
+        cat >> ${D}${sysconfdir}/nexigon/agent.toml <<EOF
+
+[commands]
+enabled = true
+EOF
+    fi
+
+    if [ "${NEXIGON_TERMINAL_ENABLED}" = "1" ]; then
+        cat >> ${D}${sysconfdir}/nexigon/agent.toml <<EOF
+
+[terminal]
+enabled = true
+user = "${NEXIGON_TERMINAL_USER}"
+EOF
+    fi
 
     if [ -n "${NEXIGON_AGENT_EXTRA_CONF}" ]; then
         printf '\n%b\n' "${NEXIGON_AGENT_EXTRA_CONF}" >> ${D}${sysconfdir}/nexigon/agent.toml

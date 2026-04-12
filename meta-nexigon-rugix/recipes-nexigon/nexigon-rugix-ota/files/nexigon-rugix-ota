@@ -77,10 +77,9 @@ else
     OTA_STATUS='{}'
 fi
 
-OTA_STATUS=$(echo "$OTA_STATUS" | jq \
+set_status '.currentVersion = $version | .config = $config' \
     --arg version "$CURRENT_VERSION" \
-    --argjson config "$OTA_CONFIG" \
-    '.currentVersion = $version | .config = $config')
+    --argjson config "$OTA_CONFIG"
 
 RUGIX_SYSTEM_INFO=$(rugix-ctrl system info)
 ACTIVE_GROUP=$(echo "$RUGIX_SYSTEM_INFO" | jq -r '.boot.activeGroup')
@@ -99,11 +98,9 @@ if [ "$ACTIVE_GROUP" != "$DEFAULT_GROUP" ]; then
     if rugix-ctrl system commit; then
         set_status '.state = "completed" | .failureCount = 0 | .lastError = null'
         emit_event "update completed"
-    else
-        record_failure "failed to commit system"
-        exit 0
     fi
-elif [ "$PREV_STATE" == "installing" ] || [ "$PREV_STATE" == "rebooting" ]; then
+    exit 0
+elif [ "$PREV_STATE" == "installing" ] || [ "$PREV_STATE" == "rebooting" ] || [ "$PREV_STATE" == "committing" ]; then
     if [ -n "$TARGET_VERSION" ] && [ "$TARGET_VERSION" != "$CURRENT_VERSION" ]; then
         record_failure "update rolled back (expected $TARGET_VERSION, running $CURRENT_VERSION)" \
             "targetVersion" "$TARGET_VERSION" \
@@ -113,6 +110,7 @@ elif [ "$PREV_STATE" == "installing" ] || [ "$PREV_STATE" == "rebooting" ]; then
         echo "[INFO] update completed (committed externally)" >&2
         set_status '.state = "completed" | .failureCount = 0 | .lastError = null'
         emit_event "update completed"
+        exit 0
     fi
 fi
 
@@ -123,24 +121,38 @@ emit_event "checking for updates" \
     "system" "$SYSTEM_NAME" \
     "currentVersion" "$CURRENT_VERSION"
 
-VERSION_INFO=$(nexigon-agent repositories versions info "$VERSION_PATH")
+if ! VERSION_INFO=$(nexigon-agent repositories versions info "$VERSION_PATH"); then
+    record_failure "unable to resolve version at $VERSION_PATH"
+    exit 1
+fi
 
-TARGET_VERSION=$(echo "$VERSION_INFO" | jq -r \
+VERSION_HAS_CURRENT=$(echo "$VERSION_INFO" | jq \
+    --arg v "$CURRENT_VERSION" \
+    '[.tags[].tag] | index($v) != null')
+
+if [ "$VERSION_HAS_CURRENT" == "true" ]; then
+    echo "[INFO] no updates available" >&2
+    set_status '.state = "completed" | .failureCount = 0 | .lastError = null'
+    emit_event "no update available" \
+        "currentVersion" "$CURRENT_VERSION"
+    exit 0
+fi
+
+BUNDLE_ASSET=$(echo "$VERSION_INFO" | jq -r \
     --arg f "$SYSTEM_NAME.rugixb" \
-    '.assets[] | select(.filename == $f) | .metadata.version // empty')
+    '.assets[] | select(.filename == $f)')
 
-if [ -z "$TARGET_VERSION" ]; then
+if [ -z "$BUNDLE_ASSET" ]; then
     record_failure "bundle asset $SYSTEM_NAME.rugixb not found in version"
     exit 1
 fi
 
-if [ "$TARGET_VERSION" == "$CURRENT_VERSION" ]; then
-    echo "[INFO] no updates available" >&2
-    set_status '.state = "completed" | .failureCount = 0 | .lastError = null'
-    emit_event "no update available" \
-        "currentVersion" "$CURRENT_VERSION" \
-        "targetVersion" "$TARGET_VERSION"
-    exit 0
+TARGET_VERSION=$(echo "$BUNDLE_ASSET" | jq -r '.metadata.version // empty')
+BUNDLE_HASH=$(echo "$BUNDLE_ASSET" | jq -r '.metadata.rugix.bundleHash // empty')
+
+if [ -z "$BUNDLE_HASH" ]; then
+    record_failure "no bundleHash in asset metadata for $SYSTEM_NAME.rugixb"
+    exit 1
 fi
 
 emit_event "update available, installing" \
@@ -151,15 +163,6 @@ if [ "$ACTIVE_GROUP" == "a" ]; then
     TARGET_GROUP="b"
 else
     TARGET_GROUP="a"
-fi
-
-BUNDLE_HASH=$(echo "$VERSION_INFO" | jq -r \
-    --arg f "$SYSTEM_NAME.rugixb" \
-    '.assets[] | select(.filename == $f) | .metadata.rugix.bundleHash // empty')
-
-if [ -z "$BUNDLE_HASH" ]; then
-    record_failure "no bundleHash in asset metadata for $SYSTEM_NAME.rugixb"
-    exit 1
 fi
 
 echo "[INFO] installing update to group $TARGET_GROUP" >&2

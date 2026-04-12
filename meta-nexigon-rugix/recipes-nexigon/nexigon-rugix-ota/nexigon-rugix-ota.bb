@@ -2,7 +2,7 @@ SUMMARY = "Nexigon Rugix OTA update service"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
-RDEPENDS:${PN} = "bash jq"
+RDEPENDS:${PN} = "bash jq nexigon-rugix-watchdog"
 
 inherit systemd
 

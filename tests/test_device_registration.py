@@ -15,8 +15,6 @@ def test_device_is_connected(
     device_id: devices.DeviceId,
 ) -> None:
     """Verify that the registered device has an active connection."""
-    result = hub.execute(
-        projects.QueryProjectDevicesAction(project_id=project_id)
-    )
+    result = hub.execute(projects.QueryProjectDevicesAction(project_id=project_id))
     device = next(d for d in result.devices if d.device_id == device_id)
     assert device.is_connected

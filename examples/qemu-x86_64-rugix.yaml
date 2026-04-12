@@ -15,7 +15,12 @@ header:
 
 local_conf_header:
   image-conf: |
-    IMAGE_FSTYPES = "tar.bz2 wic wic.bmap"
+    # Image ID used to identify the correct update artifacts.
+    IMAGE_ID = "example-qemu-arm64"
+    # Filesystem types including the Rugix update bundle.
+    IMAGE_FSTYPES = "tar.bz2 wic wic.xz wic.bmap rugixb rugixb.hash"
+    # Override the A/B system partition size (default: 4GiB).
+    # RUGIX_SYSTEM_SIZE = "4GiB"
     # Build OVMF firmware for QEMU pflash.
     EXTRA_IMAGEDEPENDS += "ovmf"
 

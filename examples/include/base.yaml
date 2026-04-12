@@ -7,6 +7,13 @@ env:
   NEXIGON_HUB_URL: ""
   NEXIGON_TOKEN: ""
 
+  NEXIGON_OTA_REPOSITORY: ""
+  NEXIGON_OTA_PACKAGE: ""
+  NEXIGON_OTA_TAG: "stable"
+
+  IMAGE_ID: "missing"
+  IMAGE_VERSION: "dev"
+
 local_conf_header:
   include-base: |
     # Basic system configuration.
@@ -30,4 +37,8 @@ local_conf_header:
     PACKAGECONFIG:append:pn-systemd = " networkd resolved"
 
     # Nexigon-specific configuration.
-    IMAGE_INSTALL:append = " nexigon-agent nexigon-agent-service nexigon-agent-conf "
+    NEXIGON_COMMANDS_ENABLED = "1"
+    NEXIGON_TERMINAL_ENABLED = "1"
+    NEXIGON_TERMINAL_USER = "root"
+    OS_RELEASE_FIELDS:append = " BUILD_ID IMAGE_ID IMAGE_VERSION"
+    IMAGE_INSTALL:append = " nexigon-agent nexigon-agent-service nexigon-agent-conf nexigon-power nexigon-systemd"

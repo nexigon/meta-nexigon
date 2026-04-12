@@ -6,9 +6,10 @@ export KAS_BUILD_DIR := env("KAS_BUILD_DIR", justfile_directory() + "/build")
 export SSTATE_DIR := env("SSTATE_DIR", justfile_directory() + "/cache/sstate-cache")
 export DL_DIR := env("DL_DIR", justfile_directory() + "/cache/downloads")
 
-_uv_run := "uv run --with 'rugix-testkit @ git+https://github.com/rugix/rugix-testkit.git' --with 'nexigon-hub-sdk @ git+https://github.com/silitics/nexigon.git#subdirectory=sdks/python' --with pytest --with pytest-timeout"
+_uv_run := "uv run --with 'rugix-testkit @ git+https://github.com/rugix/rugix-testkit.git' --with 'nexigon-hub-sdk @ git+https://github.com/nexigon/nexigon.git#subdirectory=sdks/python' --with pytest --with pytest-timeout"
+_uv_dev := "uv run --with ruff --with mypy --with pytest --with 'nexigon-hub-sdk @ git+https://github.com/nexigon/nexigon.git#subdirectory=sdks/python' --with 'rugix-testkit @ git+https://github.com/rugix/rugix-testkit.git'"
 
-_kas_env := "-e IMAGE_VERSION -e NEXIGON_HUB_URL -e NEXIGON_TOKEN -e NEXIGON_OTA_REPOSITORY -e NEXIGON_OTA_PACKAGE"
+_kas_env := "-e IMAGE_VERSION -e NEXIGON_HUB_URL -e NEXIGON_TOKEN -e NEXIGON_OTA_REPOSITORY -e NEXIGON_OTA_PACKAGE -e NEXIGON_OTA_TAG"
 
 _deploy_dir := KAS_BUILD_DIR + "/tmp/deploy/images"
 
@@ -61,4 +62,21 @@ scp-qemu file dest="/root":
 # Run all integration tests.
 [positional-arguments]
 test *args:
-    {{ _uv_run }} pytest tests/ "$@"
+    {{ _uv_run }} pytest "$@"
+
+# Run linting and format checking on tests.
+lint:
+    {{ _uv_dev }} ruff check tests/
+    {{ _uv_dev }} ruff format --check tests/
+
+# Auto-fix lint errors and format code.
+fmt:
+    {{ _uv_dev }} ruff check --fix tests/
+    {{ _uv_dev }} ruff format tests/
+
+# Run type checking on tests.
+typecheck:
+    {{ _uv_dev }} mypy tests/
+
+# Run all checks (lint, typecheck).
+check: lint typecheck
