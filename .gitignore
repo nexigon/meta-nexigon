@@ -13,3 +13,7 @@ __pycache__
 .devenv*
 .direnv
 .*_cache
+
+*.env
+
+.nexigon-cli.toml

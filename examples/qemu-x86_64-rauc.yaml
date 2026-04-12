@@ -12,7 +12,7 @@ local_conf_header:
     # Image ID used to identify the correct update artifacts.
     IMAGE_ID = "example-qemu-x86_64-rauc"
     # Filesystem types.
-    IMAGE_FSTYPES = "tar.bz2 wic"
+    IMAGE_FSTYPES = "tar.bz2 wic wic.xz"
     # Build OVMF firmware for QEMU pflash.
     EXTRA_IMAGEDEPENDS += "ovmf"
     # Use the RAUC-community GRUB config.

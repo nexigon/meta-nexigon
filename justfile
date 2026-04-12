@@ -30,6 +30,20 @@ clean-all:
     @just clean
     rm -rf "{{justfile_directory()}}/cache"
 
+# Prepare a new release.
+prepare-release:
+    ./scripts/prepare-release.sh
+
+# Build a Yocto image with release information baked in.
+[positional-arguments]
+build-release *args:
+    ./scripts/build-release.sh "$@"
+
+# Upload release artifacts.
+[positional-arguments]
+upload-release *args:
+    ./scripts/upload-release.sh "$@"
+
 # Run an arbitrary kas-container command.
 [positional-arguments]
 kas *args:

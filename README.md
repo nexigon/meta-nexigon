@@ -1,6 +1,6 @@
 # Nexigon Yocto Layers
 
-This repository provides Yocto layers for integrating [Nexigon](https://nexigon.dev) into a custom, [Yocto-based](https://www.yoctoproject.org) Linux distribution tailored to your embedded device.
+This repository provides Yocto layers for integrating [Nexigon](https://nexigon.cloud) into a custom, [Yocto-based](https://www.yoctoproject.org) Linux distribution tailored to your embedded device.
 
 **Recipes:**
 
