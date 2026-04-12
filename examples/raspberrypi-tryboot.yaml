@@ -1,4 +1,7 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/siemens/kas/refs/heads/master/kas/schema-kas.json
+#
+# Builds a Raspberry Pi image with Nexigon Agent and Rugix A/B updates.
+
 header:
   version: 14
   includes:
@@ -7,20 +10,19 @@ header:
 local_conf_header:
   raspberrypi: |
     DISTRO_FEATURES:append = " bluez5 bluetooth wifi "
-    IMAGE_INSTALL:append = " bluez5 i2c-tools "
+    IMAGE_INSTALL:append = " bluez5 i2c-tools"
     ENABLE_UART = "1"
     LICENSE_FLAGS_ACCEPTED = "synaptics-killswitch"
 
-  rugix-raspberrypi: |
-    IMAGE_FSTYPES = " tar.bz2 ext4 wic wic.bmap"
-    SDIMG_ROOTFS_TYPE = "ext4"
-    WKS_FILE = "sdimage-rugix-rpi-tryboot.wks.in"
+  image-conf: |
+    IMAGE_FSTYPES = "tar.bz2 wic wic.bmap rugixb rugixb.hash"
+    # Override the A/B system partition size (default: 4GiB).
+    # RUGIX_SYSTEM_SIZE = "4GiB"
 
 machine: raspberrypi-armv8
 distro: poky
 target:
   - core-image-minimal
-  - update-bundle-minimal
 
 defaults:
   repos:
@@ -60,3 +62,4 @@ repos:
   meta-nexigon:
     layers:
       meta-nexigon-core:
+      meta-nexigon-rugix:
