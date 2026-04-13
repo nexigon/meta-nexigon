@@ -14,6 +14,12 @@ jobs:
   build:
     name: Build
     runs-on: [self-hosted, nixos, yocto]
+    environment: staging
+    env:
+      NEXIGON_HUB_URL: ${{ vars.NEXIGON_HUB_URL }}
+      NEXIGON_TOKEN: ${{ secrets.NEXIGON_TOKEN }}
+      NEXIGON_OTA_REPOSITORY: ${{ vars.NEXIGON_OTA_REPOSITORY }}
+      NEXIGON_OTA_PACKAGE: ${{ vars.NEXIGON_OTA_PACKAGE }}
     strategy:
       matrix:
         config:
@@ -24,14 +30,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create KAS directories
-        run: mkdir -p "$KAS_WORK_DIR" "$KAS_BUILD_DIR"
+      - name: Set IMAGE_VERSION
+        run: echo "IMAGE_VERSION=build-$(date +%Y%m%d%H%M%S)-$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
 
-      - name: Validate KAS config and checkout layers
-        run: kas-container checkout ${{ matrix.config }}
-
-      - name: Parse recipes
-        run: kas-container shell ${{ matrix.config }} -c "bitbake -p"
+      - name: Generate RAUC keys
+        if: contains(matrix.config, 'rauc')
+        run: just generate-rauc-keys
 
       - name: Build
-        run: kas-container build ${{ matrix.config }}
+        run: just build ${{ matrix.config }}
