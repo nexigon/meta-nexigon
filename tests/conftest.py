@@ -247,15 +247,16 @@ class OtaTestEnv:
                     repositories.AddTagItem(tag=self.test_id, reassign=True),
                     repositories.AddTagItem(tag=v2),
                 ],
+                metadata={"imageVersion": v2},
             )
         )
         self._version_ids.append(version_output.version_id)
 
-        asset_metadata: dict[str, json_types.JsonValue] = {"version": v2}
+        asset_metadata: dict[str, json_types.JsonValue] | None = None
         if self.bundle_ext == "rugixb":
             hash_path = bundle_path.with_suffix(bundle_path.suffix + ".hash")
             bundle_hash = hash_path.read_text().strip()
-            asset_metadata["rugix"] = {"bundleHash": bundle_hash}
+            asset_metadata = {"rugix": {"bundleHash": bundle_hash}}
 
         self._hub.execute(
             repositories.AddPackageVersionAssetAction(
@@ -318,6 +319,7 @@ def ota_test_env(hub: Client, vm: VMHandle, deploy_dir: Path) -> Generator[OtaTe
                 repositories.AddTagItem(tag=test_id),
                 repositories.AddTagItem(tag=v1),
             ],
+            metadata={"imageVersion": v1},
         )
     )
     version_ids: list[repositories.PackageVersionId] = [version_output.version_id]

@@ -111,13 +111,14 @@ fi
 RUGIX_UPLOADED=false
 for bundle_file in "$DEPLOY_DIR"/*-"$MACHINE".rootfs.rugixb; do
     if [ -e "$bundle_file" ] && [ -L "$bundle_file" ]; then
-        bundle_metadata=$(jq -nc --arg version "$VERSION" '{version: $version}')
         hash_file="$bundle_file.hash"
         if [ -e "$hash_file" ]; then
             BUNDLE_HASH=$(cat "$hash_file")
-            bundle_metadata=$(echo "$bundle_metadata" | jq -c --arg h "$BUNDLE_HASH" '.rugix = {bundleHash: $h}')
+            bundle_metadata=$(jq -nc --arg h "$BUNDLE_HASH" '{rugix: {bundleHash: $h}}')
+            upload_asset "$bundle_file" "$IMAGE_ID.rugixb" "$bundle_metadata"
+        else
+            upload_asset "$bundle_file" "$IMAGE_ID.rugixb"
         fi
-        upload_asset "$bundle_file" "$IMAGE_ID.rugixb" "$bundle_metadata"
         RUGIX_UPLOADED=true
         break
     fi
@@ -127,8 +128,7 @@ done
 RAUC_UPLOADED=false
 for bundle_file in "$DEPLOY_DIR"/*-"$MACHINE".raucb; do
     if [ -e "$bundle_file" ] && [ -L "$bundle_file" ]; then
-        bundle_metadata=$(jq -nc --arg version "$VERSION" '{version: $version}')
-        upload_asset "$bundle_file" "$IMAGE_ID.raucb" "$bundle_metadata"
+        upload_asset "$bundle_file" "$IMAGE_ID.raucb"
         RAUC_UPLOADED=true
         break
     fi

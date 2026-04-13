@@ -43,8 +43,10 @@ if [ "$(echo "$BUILD_VERSION_INFO" | jq -r '.result')" == "Found" ]; then
     VERSION_ID=$(echo "$BUILD_VERSION_INFO" | jq -r '.versionId')
 else
     echo "[INFO] creating build version"
+    VERSION_METADATA=$(jq -nc --arg version "$VERSION" '{imageVersion: $version}')
     VERSION_ID=$($NEXIGON_CLI repositories versions create "$PACKAGE_PATH" \
-        --tag "$BUILD_TAG,locked" --tag "$FLOATING_TAG,reassign" | jq -r '.versionId')
+        --tag "$BUILD_TAG,locked" --tag "$FLOATING_TAG,reassign" \
+        --metadata "$VERSION_METADATA" | jq -r '.versionId')
 fi
 
 echo "[INFO] BUILD_TAG=$BUILD_TAG"

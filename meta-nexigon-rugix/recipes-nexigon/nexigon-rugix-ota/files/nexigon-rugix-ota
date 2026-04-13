@@ -129,11 +129,9 @@ if ! VERSION_INFO=$(nexigon-agent repositories versions info "$VERSION_PATH"); t
     exit 1
 fi
 
-VERSION_HAS_CURRENT=$(echo "$VERSION_INFO" | jq \
-    --arg v "$CURRENT_VERSION" \
-    '[.tags[].tag] | index($v) != null')
+TARGET_VERSION=$(echo "$VERSION_INFO" | jq -r '.metadata.imageVersion // empty')
 
-if [ "$VERSION_HAS_CURRENT" == "true" ]; then
+if [ "$TARGET_VERSION" == "$CURRENT_VERSION" ]; then
     echo "[INFO] no updates available" >&2
     emit_event "no update available" \
         "currentVersion" "$CURRENT_VERSION"
@@ -149,8 +147,6 @@ if [ -z "$BUNDLE_ASSET" ]; then
     record_failure "bundle asset $SYSTEM_NAME.rugixb not found in version"
     exit 1
 fi
-
-TARGET_VERSION=$(echo "$BUNDLE_ASSET" | jq -r '.metadata.version // empty')
 
 INSTALL_ARGS=()
 if [ "$USE_BUNDLE_HASH" == "true" ]; then
