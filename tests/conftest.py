@@ -87,17 +87,17 @@ def hub_url() -> str:
 
 @pytest.fixture(scope="session")
 def api_token() -> str:
-    token = os.environ.get("NEXIGON_API_TOKEN")
+    token = os.environ.get("TESTS_API_TOKEN")
     if not token:
-        pytest.skip("NEXIGON_API_TOKEN not set")
+        pytest.skip("TESTS_API_TOKEN not set")
     return token
 
 
 @pytest.fixture(scope="session")
 def project_id() -> projects.ProjectId:
-    pid = os.environ.get("NEXIGON_PROJECT_ID")
+    pid = os.environ.get("TESTS_PROJECT_ID")
     if not pid:
-        pytest.skip("NEXIGON_PROJECT_ID not set")
+        pytest.skip("TESTS_PROJECT_ID not set")
     return projects.ProjectId(pid)
 
 
