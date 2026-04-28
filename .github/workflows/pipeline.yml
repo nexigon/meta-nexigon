@@ -30,12 +30,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up mise
+        uses: jdx/mise-action@v2
+
       - name: Set IMAGE_VERSION
         run: echo "IMAGE_VERSION=build-$(date +%Y%m%d%H%M%S)-$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
 
       - name: Generate RAUC keys
         if: contains(matrix.config, 'rauc')
-        run: just generate-rauc-keys
+        run: mise run generate-rauc-keys
 
       - name: Build
-        run: just build ${{ matrix.config }}
+        run: mise run build ${{ matrix.config }}

@@ -1,0 +1,152 @@
+[tools]
+"pipx:kas" = "latest"
+"uv" = "latest"
+
+[env]
+_.file = ".env"
+
+KAS_CONTAINER_ENGINE = "{{ get_env(name='KAS_CONTAINER_ENGINE', default='podman') }}"
+KAS_WORK_DIR = "{{ get_env(name='KAS_WORK_DIR', default=config_root ~ '/_kas') }}"
+KAS_BUILD_DIR = "{{ get_env(name='KAS_BUILD_DIR', default=config_root ~ '/build') }}"
+KAS_TMP_DIR = "{{ get_env(name='KAS_TMP_DIR', default=config_root ~ '/_tmp') }}"
+SSTATE_DIR = "{{ get_env(name='SSTATE_DIR', default=config_root ~ '/cache/sstate-cache') }}"
+DL_DIR = "{{ get_env(name='DL_DIR', default=config_root ~ '/cache/downloads') }}"
+RAUC_KEYS_DIR = "/repo/rauc-keys"
+
+[vars]
+uv_run = "uv run --with 'rugix-testkit @ git+https://github.com/rugix/rugix-testkit.git' --with 'nexigon-hub-sdk @ git+https://github.com/nexigon/nexigon.git#subdirectory=sdks/python' --with pytest --with pytest-timeout"
+uv_dev = "uv run --with ruff --with mypy --with pytest --with 'nexigon-hub-sdk @ git+https://github.com/nexigon/nexigon.git#subdirectory=sdks/python' --with 'rugix-testkit @ git+https://github.com/rugix/rugix-testkit.git'"
+deploy_dir = "{{ get_env(name='KAS_BUILD_DIR', default=config_root ~ '/build') }}/tmp/deploy/images"
+ssh_opts = "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+rauc_keys_dir = "{{ config_root }}/rauc-keys"
+
+# ---- build / kas ----------------------------------------------------------
+
+[tasks.clean]
+description = "Remove all build artifacts."
+run = 'rm -rf "$KAS_WORK_DIR" "$KAS_BUILD_DIR" "$KAS_TMP_DIR"'
+
+[tasks."clean-all"]
+description = "Remove all build artifacts and the cache."
+depends = ["clean"]
+run = 'rm -rf "{{ config_root }}/cache"'
+
+# Bind-mounting $KAS_TMP_DIR onto /tmp inside the container avoids the
+# overlay-on-overlay races that otherwise cause sporadic ENOENTs in autoconf,
+# glibc, and rust-llvm builds.
+[tasks.kas]
+description = "Run an arbitrary kas-container command."
+run = '''
+mkdir -p "$KAS_WORK_DIR" "$KAS_BUILD_DIR" "$KAS_TMP_DIR"
+chmod 1777 "$KAS_TMP_DIR"
+kas-container --runtime-args "-e IMAGE_VERSION -e NEXIGON_HUB_URL -e NEXIGON_TOKEN -e NEXIGON_OTA_REPOSITORY -e NEXIGON_OTA_PACKAGE -e NEXIGON_OTA_TAG -e RAUC_KEYS_DIR -v $KAS_TMP_DIR:/tmp:rw" "$@"
+'''
+
+[tasks.build]
+description = "Build a Yocto image with kas-container."
+run = '''
+mkdir -p "$KAS_WORK_DIR" "$KAS_BUILD_DIR" "$KAS_TMP_DIR"
+chmod 1777 "$KAS_TMP_DIR"
+kas-container --runtime-args "-e IMAGE_VERSION -e NEXIGON_HUB_URL -e NEXIGON_TOKEN -e NEXIGON_OTA_REPOSITORY -e NEXIGON_OTA_PACKAGE -e NEXIGON_OTA_TAG -e RAUC_KEYS_DIR -v $KAS_TMP_DIR:/tmp:rw" build "$@"
+'''
+
+# ---- release scripts ------------------------------------------------------
+
+[tasks."prepare-release"]
+description = "Prepare a new release."
+run = "./scripts/prepare-release.sh"
+
+[tasks."build-release"]
+description = "Build a Yocto image with release information baked in."
+run = './scripts/build-release.sh "$@"'
+
+[tasks."upload-release"]
+description = "Upload release artifacts."
+run = './scripts/upload-release.sh "$@"'
+
+# ---- QEMU helpers ---------------------------------------------------------
+
+[tasks."run-qemu-x86_64"]
+description = "Run the QEMU x86-64 Rugix image."
+run = '''
+nix_prefix=()
+if command -v nix >/dev/null 2>&1; then
+    nix_prefix=(nix shell nixpkgs#qemu --command)
+fi
+exec "${nix_prefix[@]}" {{ vars.uv_run }} rugix-testkit run --arch x86_64 --ssh-port 2222 \
+    --drive {{ vars.deploy_dir }}/qemux86-64/core-image-minimal-qemux86-64.rootfs.wic,overlay=true,size=16G \
+    --pflash {{ vars.deploy_dir }}/qemux86-64/ovmf.code.qcow2,format=qcow2,readonly=true \
+    --pflash {{ vars.deploy_dir }}/qemux86-64/ovmf.vars.qcow2,format=qcow2 \
+    "$@"
+'''
+
+[tasks."ssh-qemu"]
+description = "SSH into a running QEMU VM."
+run = "ssh {{ vars.ssh_opts }} -p 2222 root@localhost"
+
+[tasks."scp-qemu"]
+description = "Copy a file into a running QEMU VM."
+usage = '''
+arg "<file>" help="File to copy into the VM"
+arg "[dest]" help="Destination path in the VM" default="/root"
+'''
+run = 'scp {{ vars.ssh_opts }} -P 2222 "$usage_file" "root@localhost:$usage_dest"'
+
+# ---- tests / lint ---------------------------------------------------------
+
+[tasks.test]
+description = "Run all integration tests."
+run = '''
+nix_prefix=()
+if command -v nix >/dev/null 2>&1; then
+    nix_prefix=(nix shell nixpkgs#qemu --command)
+fi
+exec "${nix_prefix[@]}" {{ vars.uv_run }} pytest "$@"
+'''
+
+[tasks.lint]
+description = "Run linting and format checking on tests."
+run = [
+    "{{ vars.uv_dev }} ruff check tests/",
+    "{{ vars.uv_dev }} ruff format --check tests/",
+]
+
+[tasks.fmt]
+description = "Auto-fix lint errors and format code."
+run = [
+    "{{ vars.uv_dev }} ruff check --fix tests/",
+    "{{ vars.uv_dev }} ruff format tests/",
+]
+
+[tasks.typecheck]
+description = "Run type checking on tests."
+run = "{{ vars.uv_dev }} mypy tests/"
+
+[tasks.check]
+description = "Run all checks (lint, typecheck)."
+depends = ["lint", "typecheck"]
+
+# ---- RAUC keys ------------------------------------------------------------
+
+[tasks."generate-rauc-keys"]
+description = "Generate development signing keys for RAUC."
+run = '''
+set -euo pipefail
+dir="{{ vars.rauc_keys_dir }}"
+if [ -f "$dir/ca.cert.pem" ]; then
+    echo "Keys already exist in $dir — delete the directory to regenerate."
+    exit 0
+fi
+mkdir -p "$dir"
+openssl req -x509 -newkey rsa:4096 -nodes \
+    -keyout "$dir/ca.key.pem" -out "$dir/ca.cert.pem" \
+    -subj "/CN=Nexigon Dev CA" -days 3650
+openssl req -newkey rsa:4096 -nodes \
+    -keyout "$dir/development-1.key.pem" -out "$dir/development-1.csr.pem" \
+    -subj "/CN=Nexigon Dev Signing Key"
+openssl x509 -req -CAkey "$dir/ca.key.pem" -CA "$dir/ca.cert.pem" \
+    -CAcreateserial -in "$dir/development-1.csr.pem" \
+    -out "$dir/development-1.cert.pem" -days 3650
+rm -f "$dir/development-1.csr.pem" "$dir/ca.srl"
+echo "RAUC development keys generated in $dir"
+'''

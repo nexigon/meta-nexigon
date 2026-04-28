@@ -1,4 +1,6 @@
 _kas
+_logs
+_tmp
 .claude
 .env
 .venv
@@ -10,8 +12,6 @@ test-outputs
 
 __pycache__
 
-.devenv*
-.direnv
 .*_cache
 
 *.env

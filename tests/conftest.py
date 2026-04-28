@@ -142,6 +142,21 @@ def vm(deploy_dir: Path, request: pytest.FixtureRequest) -> Generator[VMHandle]:
     with VMHandle.start(config) as handle:
         request.node._vm_handle = handle
         yield handle
+        _assert_no_agent_warnings(handle)
+
+
+def _assert_no_agent_warnings(vm: VMHandle) -> None:
+    """Fail the test if the nexigon-agent journal contains warning-or-higher entries."""
+    result = vm.run(
+        ["journalctl", "-u", "nexigon-agent", "-p", "warning", "--no-pager", "-q"],
+        check=False,
+        hide=True,
+    )
+    output = result.stdout.strip()
+    if output:
+        pytest.fail(
+            "nexigon-agent emitted warning-or-higher journal entries:\n" + output
+        )
 
 
 @pytest.fixture
@@ -366,3 +381,11 @@ def _dump_test_artifacts(item: pytest.Item) -> None:
         (artifact_dir / "commands.log").write_text(
             "\n\n".join(str(cmd) for cmd in history) + "\n"
         )
+
+    journal = vm_handle.run(
+        ["journalctl", "-u", "nexigon-agent", "--no-pager", "-o", "short-precise"],
+        check=False,
+        hide=True,
+    ).stdout
+    if journal:
+        (artifact_dir / "nexigon-agent.journal").write_text(journal)

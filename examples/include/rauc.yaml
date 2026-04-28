@@ -19,7 +19,7 @@ local_conf_header:
     NEXIGON_DEVICE_FINGERPRINT = "random-uuid"
     NEXIGON_DEVICE_FINGERPRINT_FILE = "/data/nexigon/agent/device-fingerprint"
   rauc-keys: |
-    # Development signing keys (run `just generate-rauc-keys` first).
+    # Development signing keys (run `mise run generate-rauc-keys` first).
     RAUC_KEY_FILE = "${RAUC_KEYS_DIR}/development-1.key.pem"
     RAUC_CERT_FILE = "${RAUC_KEYS_DIR}/development-1.cert.pem"
     RAUC_KEYRING_FILE = "${RAUC_KEYS_DIR}/ca.cert.pem"

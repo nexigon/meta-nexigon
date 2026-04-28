@@ -17,7 +17,7 @@ Using a different update engine? The RAUC and Rugix scripts serve as reference i
 
 ## Getting Started
 
-The examples use [Kas](https://kas.readthedocs.io) for build configuration. A [justfile](https://just.systems) wraps common operations.
+The examples use [Kas](https://kas.readthedocs.io) for build configuration. Toolchain and tasks are managed with [mise](https://mise.jdx.dev).
 
 Set your Nexigon Hub URL and deployment token in a `.env` file:
 
@@ -32,14 +32,14 @@ Build an example image:
 
 ```sh
 # With Rugix
-just build examples/qemu-x86_64-rugix.yaml
+mise run build examples/qemu-x86_64-rugix.yaml
 
 # With RAUC (generate signing keys first)
-just generate-rauc-keys
-just build examples/qemu-x86_64-rauc.yaml
+mise run generate-rauc-keys
+mise run build examples/qemu-x86_64-rauc.yaml
 ```
 
-Boot it in QEMU with `just run-qemu-x86_64` and SSH in with `just ssh-qemu`.
+Boot it in QEMU with `mise run run-qemu-x86_64` and SSH in with `mise run ssh-qemu`.
 
 ## Device Identity
 
@@ -66,10 +66,10 @@ The upload script auto-detects Rugix (`.rugixb`) and RAUC (`.raucb`) bundles and
 ## Testing
 
 ```sh
-just test
+mise run test
 ```
 
-The test suite boots real QEMU images, talks to a live Nexigon Hub instance, and exercises the full OTA pipeline: bundle upload, version resolution, install, reboot, and commit/rollback. Tests auto-detect which update engine was built and skip the rest. Run a specific suite with `just test -m rugix` or `just test -m rauc`.
+The test suite boots real QEMU images, talks to a live Nexigon Hub instance, and exercises the full OTA pipeline: bundle upload, version resolution, install, reboot, and commit/rollback. Tests auto-detect which update engine was built and skip the rest. Run a specific suite with `mise run test -m rugix` or `mise run test -m rauc`.
 
 ## Configuration Reference
 
