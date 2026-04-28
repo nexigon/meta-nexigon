@@ -30,9 +30,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up mise
-        uses: jdx/mise-action@v2
-
       - name: Set IMAGE_VERSION
         run: echo "IMAGE_VERSION=build-$(date +%Y%m%d%H%M%S)-$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
 
