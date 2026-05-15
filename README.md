@@ -85,6 +85,8 @@ See the example Kas configs under `examples/` for working setups. The key variab
 | `NEXIGON_OTA_PACKAGE`        | `nexigon-*-ota`      | Package within the repository. Required.           |
 | `NEXIGON_OTA_TAG`            | `nexigon-*-ota`      | Version tag to track (default: `"stable"`).        |
 | `NEXIGON_OTA_INTERVAL`       | `nexigon-*-ota`      | Update check interval (default: `"4h"`).           |
+| `NEXIGON_OTA_RANDOMIZED_DELAY` | `nexigon-*-ota`    | Randomized delay added to each timer activation, as a systemd time span (default: `"300"`, i.e. 5 minutes). |
+| `NEXIGON_OTA_ACCURACY`       | `nexigon-*-ota`      | Timer accuracy (systemd `AccuracySec=`); upper bound on how much firings may be coalesced. Lower it for short intervals (default: `"1min"`). |
 
 ## Licensing
 

@@ -10,6 +10,8 @@ SYSTEMD_SERVICE:${PN} = "nexigon-rugix-ota.timer nexigon-rugix-ota.service"
 SYSTEMD_AUTO_ENABLE:${PN} = "enable"
 
 NEXIGON_OTA_INTERVAL ??= "4h"
+NEXIGON_OTA_RANDOMIZED_DELAY ??= "300"
+NEXIGON_OTA_ACCURACY ??= "1min"
 NEXIGON_OTA_TAG ??= "stable"
 NEXIGON_OTA_REPOSITORY ??= ""
 NEXIGON_OTA_PACKAGE ??= ""
@@ -39,7 +41,10 @@ do_install() {
     install -d ${D}${systemd_system_unitdir}
     install -m 0644 ${WORKDIR}/nexigon-rugix-ota.service ${D}${systemd_system_unitdir}/
     install -m 0644 ${WORKDIR}/nexigon-rugix-ota.timer ${D}${systemd_system_unitdir}/
-    sed -i "s|@@INTERVAL@@|${NEXIGON_OTA_INTERVAL}|g" \
+    sed -i \
+        -e "s|@@INTERVAL@@|${NEXIGON_OTA_INTERVAL}|g" \
+        -e "s|@@RANDOMIZED_DELAY@@|${NEXIGON_OTA_RANDOMIZED_DELAY}|g" \
+        -e "s|@@ACCURACY@@|${NEXIGON_OTA_ACCURACY}|g" \
         ${D}${systemd_system_unitdir}/nexigon-rugix-ota.timer
 
     install -d ${D}${sysconfdir}/nexigon/agent/commands

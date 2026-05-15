@@ -4,7 +4,8 @@ Description=Nexigon RAUC OTA Update Timer
 [Timer]
 OnBootSec=60
 OnUnitActiveSec=@@INTERVAL@@
-RandomizedDelaySec=300
+RandomizedDelaySec=@@RANDOMIZED_DELAY@@
+AccuracySec=@@ACCURACY@@
 Persistent=true
 
 [Install]
