@@ -31,3 +31,10 @@ CARGO_BUILD_FLAGS:append = " --config 'profile.release.strip="none"'"
 cargo_do_compile:prepend:class-target() {
     sed -i '/panic = \"abort\"/d' ${S}/${CARGO_SRC_DIR}/Cargo.toml
 }
+
+# Inject the short commit hash into the build so the agent reports it via
+# `--version` and as a device property. Falls back to "unknown" if git is
+# unavailable.
+cargo_do_compile:prepend() {
+    export NEXIGON_GIT_VERSION="$(git -C ${S} rev-parse --short HEAD 2>/dev/null || echo unknown)"
+}
