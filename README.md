@@ -88,6 +88,24 @@ See the example Kas configs under `examples/` for working setups. The key variab
 | `NEXIGON_OTA_RANDOMIZED_DELAY` | `nexigon-*-ota`    | Randomized delay added to each timer activation, as a systemd time span (default: `"300"`, i.e. 5 minutes). |
 | `NEXIGON_OTA_ACCURACY`       | `nexigon-*-ota`      | Timer accuracy (systemd `AccuracySec=`); upper bound on how much firings may be coalesced. Lower it for short intervals (default: `"1min"`). |
 
+## Declarative App Configuration
+
+The `nexigon-rugix-apps` integration includes a timer that reconciles the protected
+`dev.nexigon.apps.config` property with installed Rugix apps. Device profiles can
+supply this property to several devices. Each app declaration specifies a package
+version ID, an optional asset filename, and a `running` or `stopped` state.
+
+An empty `apps` map removes only apps previously managed by the handler. Removing
+the property suspends management and keeps installed apps. Status is reported in
+`dev.nexigon.apps.status`, including the configuration version. Failures have a
+bounded retry count; the `nexigon.rugix-apps.reconcile` device command retries them.
+The ledger at `/var/lib/nexigon/rugix-apps` persists across Rugix system updates.
+
+Use trusted bundles containing only the declared app. The handler uses Rugix's
+bundle verification and does not filter bundle payloads. See the
+[declarative app configuration guide](https://docs.nexigon.dev/agent/next/rugix/app-profiles)
+for the configuration contract and retry behavior.
+
 ## Licensing
 
 This project is licensed under either [MIT](https://github.com/nexigon/meta-nexigon/blob/main/LICENSE-MIT) or [Apache 2.0](https://github.com/nexigon/meta-nexigon/blob/main/LICENSE-APACHE) at your option.
