@@ -17,7 +17,7 @@ Using a different update engine? The RAUC and Rugix scripts serve as reference i
 
 ## Getting Started
 
-The examples use [Kas](https://kas.readthedocs.io) for build configuration. Toolchain and tasks are managed with [mise](https://mise.jdx.dev).
+The examples target Yocto Scarthgap and select the matching `meta-rugix` branch. They use [Kas](https://kas.readthedocs.io) for build configuration. Toolchain and tasks are managed with [mise](https://mise.jdx.dev).
 
 Set your Nexigon Hub URL and deployment token in a `.env` file:
 
