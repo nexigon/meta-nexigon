@@ -43,6 +43,15 @@ mise run build examples/qemu-x86_64-rauc.yaml
 
 Boot it in QEMU with `mise run run-qemu-x86_64` and SSH in with `mise run ssh-qemu`.
 
+## Credentials
+
+Nexigon Agent connects to Nexigon Hub with static credentials or with credentials obtained through provisioning:
+
+- **Static credentials.** Set `NEXIGON_HUB_URL` to the URL of Nexigon Hub and `NEXIGON_TOKEN` to a deployment token. Every device built from the image connects on its first boot.
+- **Provisioning.** Set `NEXIGON_PROVISIONING = "1"` and leave `NEXIGON_HUB_URL` and `NEXIGON_TOKEN` empty. Until it is paired, the agent accepts a one-time provisioning token on port 6947 and then saves the credentials that it receives. See [Device Provisioning](https://docs.nexigon.dev/guides/provisioning/). To configure the listener, for example its port, leave `NEXIGON_PROVISIONING` at `"0"` and add a `[provisioning]` table to `NEXIGON_AGENT_EXTRA_CONF` instead.
+
+With neither, the agent uses credentials saved by an earlier provisioning and fails to start if there are none. A production image installed by an update after provisioning works this way.
+
 ## Device Identity
 
 Every device needs a stable fingerprint so Nexigon Hub can identify it across reboots and updates.
@@ -53,7 +62,7 @@ Set `NEXIGON_DEVICE_FINGERPRINT` to one of:
 - `"random-uuid"` — Generates a UUID on first boot and stores it at `NEXIGON_DEVICE_FINGERPRINT_FILE`. Use this for RAUC or any A/B scheme where `/etc` differs between slots.
 - A path to your own script — for hardware-backed identifiers like a TPM or board serial number.
 
-For A/B systems where each slot has its own non-persistent `/etc`, also set `NEXIGON_AGENT_SSL_DIR` to a shared partition (e.g. `/data/nexigon/agent/ssl`) so the agent's TLS identity survives slot switches.
+For A/B systems where each slot has its own non-persistent `/etc`, also set `NEXIGON_AGENT_SSL_DIR` to a shared partition (e.g. `/data/nexigon/agent/ssl`) so the agent's TLS identity survives slot switches. Also set `NEXIGON_AGENT_DATA_DIR` to a shared partition (e.g. `/data/nexigon/agent`) for the data of the agent, which includes the credentials saved by provisioning. The RAUC examples keep the fingerprint, the TLS identity, and the agent data on the data partition. On Rugix, `meta-nexigon-rugix` persists these directories with Rugix state management.
 
 ## Releasing Updates
 
@@ -79,10 +88,12 @@ See the example Kas configs under `examples/` for working setups. The key variab
 
 | Variable                     | Recipe               | Description                                        |
 | ---------------------------- | -------------------- | -------------------------------------------------- |
-| `NEXIGON_HUB_URL`            | `nexigon-agent-conf` | Nexigon Hub URL. Required.                         |
-| `NEXIGON_TOKEN`              | `nexigon-agent-conf` | Deployment token. Required.                        |
+| `NEXIGON_HUB_URL`            | `nexigon-agent-conf` | Nexigon Hub URL for static credentials.            |
+| `NEXIGON_TOKEN`              | `nexigon-agent-conf` | Deployment token for static credentials.           |
+| `NEXIGON_PROVISIONING`       | `nexigon-agent-conf` | Accept a provisioning token while unpaired (default: `"0"`). |
 | `NEXIGON_DEVICE_FINGERPRINT` | `nexigon-agent-conf` | Fingerprint mechanism. Required.                   |
 | `NEXIGON_AGENT_SSL_DIR`      | `nexigon-agent-conf` | Persistent SSL cert/key directory for A/B systems. |
+| `NEXIGON_AGENT_DATA_DIR`     | `nexigon-agent-conf` | Data directory of the agent, including saved credentials (default: `/var/lib/nexigon/agent`). |
 | `NEXIGON_SYSTEM_UPDATES`     | `nexigon-agent-conf` | Update engine of the agent: `"rugix"`, `"rauc"`, or `""` for none. The OTA layers set it. |
 | `NEXIGON_OTA_REPOSITORY`     | `nexigon-agent-conf` | Repository on Nexigon Hub.                         |
 | `NEXIGON_OTA_PACKAGE`        | `nexigon-agent-conf` | Package within the repository.                     |

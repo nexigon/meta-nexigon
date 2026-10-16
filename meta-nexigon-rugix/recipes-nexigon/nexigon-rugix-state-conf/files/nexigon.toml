@@ -1,2 +1,6 @@
 [[persist]]
 directory = "/etc/nexigon/agent/ssl"
+
+# Data of the agent, including the credentials saved by provisioning.
+[[persist]]
+directory = "/var/lib/nexigon"
