@@ -23,39 +23,10 @@ distro: poky
 target:
   - core-image-minimal
 
-defaults:
-  repos:
-    branch: scarthgap
-
 repos:
-  poky:
-    url: https://github.com/yoctoproject/poky.git
-    layers:
-      meta:
-      meta-poky:
-      meta-yocto-bsp:
-
-  meta-openembedded:
-    url: "https://github.com/openembedded/meta-openembedded.git"
-    layers:
-      meta-oe:
-      meta-python:
-      meta-networking:
-      meta-multimedia:
-      meta-filesystems:
-
-  # We need a sufficiently recent Rust version to compile Nexigon and Rugix.
-  meta-lts-mixins-rust:
-    url: "https://git.yoctoproject.org/meta-lts-mixins"
-    branch: scarthgap/rust
-
-  meta-lts-mixins-uboot:
-    url: "https://git.yoctoproject.org/meta-lts-mixins"
-    branch: scarthgap/u-boot
-
   meta-rugix:
-    url: "https://github.com/rugix/meta-rugix.git"
-    branch: scarthgap
+    url: https://github.com/rugix/meta-rugix.git
+    branch: wrynose
     layers:
       meta-rugix-core:
       meta-rugix-qemu-x86_64-grub:

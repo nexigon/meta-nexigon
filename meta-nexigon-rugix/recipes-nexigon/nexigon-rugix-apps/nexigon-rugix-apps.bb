@@ -15,14 +15,15 @@ SRC_URI = " \
     file://nexigon-rugix-apps \
     file://nexigon-rugix-apps-deploy \
 "
+S = "${UNPACKDIR}"
 
 do_install() {
     install -d ${D}${sysconfdir}/nexigon/agent/commands
-    for f in ${WORKDIR}/nexigon.rugix-apps.*.toml; do
+    for f in ${UNPACKDIR}/nexigon.rugix-apps.*.toml; do
         install -m 0644 "$f" ${D}${sysconfdir}/nexigon/agent/commands/
     done
 
     install -d ${D}${libexecdir}/nexigon
-    install -m 0755 ${WORKDIR}/nexigon-rugix-apps ${D}${libexecdir}/nexigon/
-    install -m 0755 ${WORKDIR}/nexigon-rugix-apps-deploy ${D}${libexecdir}/nexigon/
+    install -m 0755 ${UNPACKDIR}/nexigon-rugix-apps ${D}${libexecdir}/nexigon/
+    install -m 0755 ${UNPACKDIR}/nexigon-rugix-apps-deploy ${D}${libexecdir}/nexigon/
 }
