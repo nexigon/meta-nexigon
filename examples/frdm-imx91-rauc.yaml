@@ -1,0 +1,86 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/siemens/kas/refs/heads/master/kas/schema-kas.json
+#
+# Builds a demo image for the NXP FRDM-IMX91 with RAUC A/B updates. Devices
+# pair with Nexigon Hub through provisioning, see meta-nexigon-rauc-nxp.
+#
+# The base layers are pinned to the revisions of NXP's i.MX Linux release
+# LF6.18.37-2.1.0 (Yocto 6.0), see https://github.com/nxp-imx/imx-manifest/blob/imx-linux-wrynose/imx-6.18.37-2.1.0.xml.
+
+header:
+  version: 14
+  includes:
+    - examples/include/rauc.yaml
+
+local_conf_header:
+  nxp-bsp: |
+    # NXP's firmware is licensed under the NXP EULA, which the build accepts.
+    ACCEPT_FSL_EULA = "1"
+  image-conf: |
+    # Image ID used to identify the correct update artifacts.
+    IMAGE_ID = "example-frdm-imx91-rauc"
+    IMAGE_FSTYPES = "ext4 wic.bz2 wic.bmap"
+    # A/B partition layout and boot script of meta-nexigon-rauc-nxp.
+    WKS_FILE = "nexigon-rauc-nxp.wks.in"
+    IMAGE_BOOT_FILES = "boot.scr"
+    # The boot script loads the kernel and device tree from the booted slot.
+    IMAGE_INSTALL:append = " kernel-image kernel-devicetree"
+    # Reset the board with the hardware watchdog if the system hangs, so that
+    # a broken update falls back to the previous slot.
+    WATCHDOG_RUNTIME_SEC:pn-systemd = "30"
+  provisioning: |
+    # Pair with a provisioning token instead of built-in credentials.
+    NEXIGON_PROVISIONING = "1"
+    NEXIGON_HUB_URL = ""
+    NEXIGON_TOKEN = ""
+
+machine: imx91-11x11-lpddr4-frdm
+distro: poky
+target:
+  - core-image-minimal
+  - nexigon-demo-bundle
+
+# The layers of examples/include/base.yaml are pinned to the release.
+repos:
+  bitbake:
+    commit: acfe02fa38b5da9e6a36c6cedcf91d4fcbefbfbd
+
+  openembedded-core:
+    commit: 5d1aa5c806c061a2994f4decb59016610f093213
+
+  meta-yocto:
+    commit: 24c24cef5d1523fefe43a3e3d34667b37ae551f3
+
+  meta-openembedded:
+    commit: 6bf0d8ad57b33950bab4c7f6c037e1ccb6f6e2eb
+
+  meta-freescale:
+    url: https://github.com/Freescale/meta-freescale.git
+    branch: wrynose
+    commit: ca31f33c5b5e433939c5f8442d2de56925d638bd
+
+  # NXP's OP-TEE recipes require meta-arm.
+  meta-arm:
+    url: https://git.yoctoproject.org/meta-arm
+    branch: wrynose
+    commit: 0979b80429099f1a42dc0026c8c466cee780bc74
+    layers:
+      meta-arm:
+      meta-arm-toolchain:
+
+  meta-imx:
+    url: https://github.com/nxp-imx/meta-imx.git
+    branch: wrynose-6.18.37-2.1.0
+    commit: 840f8da0f3350bf389067f84922c7436efde0653
+    layers:
+      meta-imx-bsp:
+
+  meta-rauc:
+    url: https://github.com/rauc/meta-rauc.git
+    branch: wrynose
+    commit: 38da0e5866a953e664001ba90b5edad68d68cd5d
+
+  meta-nexigon:
+    layers:
+      meta-nexigon-core:
+      meta-nexigon-rauc:
+      meta-nexigon-rauc-nxp:

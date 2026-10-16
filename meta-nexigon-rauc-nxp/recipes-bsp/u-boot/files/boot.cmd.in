@@ -1,0 +1,63 @@
+# RAUC A/B boot script for NXP i.MX boards.
+#
+# Partition 1 (FAT) holds this script and rauc.env, partitions 2 and 3 hold
+# slots A and B. The script selects a slot with the boot counters of RAUC's
+# U-Boot backend and boots the kernel and device tree from the slot's /boot.
+#
+# The counters live in rauc.env rather than in U-Boot's environment storage,
+# which is fixed to one MMC device. RAUC updates the file with fw_setenv. The
+# bootflow that runs this script sets ${devtype} and ${devnum} to the device it
+# booted from, so the same script works on SD cards and eMMC.
+#
+# If a slot fails to boot, the board resets, and the decremented counter
+# eventually makes the script select the other slot.
+
+if load ${devtype} ${devnum}:1 ${loadaddr} rauc.env; then
+    env import -c ${loadaddr} ${filesize} BOOT_ORDER BOOT_A_LEFT BOOT_B_LEFT
+fi
+
+test -n "${BOOT_ORDER}" || setenv BOOT_ORDER "A B"
+test -n "${BOOT_A_LEFT}" || setenv BOOT_A_LEFT 3
+test -n "${BOOT_B_LEFT}" || setenv BOOT_B_LEFT 3
+
+setenv rauc_part
+setenv rauc_slot
+for BOOT_SLOT in "${BOOT_ORDER}"; do
+    if test "x${rauc_part}" != "x"; then
+        # A slot has been selected.
+    elif test "x${BOOT_SLOT}" = "xA"; then
+        if test ${BOOT_A_LEFT} -gt 0; then
+            setexpr BOOT_A_LEFT ${BOOT_A_LEFT} - 1
+            setenv rauc_part 2
+            setenv rauc_slot A
+        fi
+    elif test "x${BOOT_SLOT}" = "xB"; then
+        if test ${BOOT_B_LEFT} -gt 0; then
+            setexpr BOOT_B_LEFT ${BOOT_B_LEFT} - 1
+            setenv rauc_part 3
+            setenv rauc_slot B
+        fi
+    fi
+done
+
+if test -z "${rauc_part}"; then
+    echo "No RAUC slot has boot attempts left, resetting the attempts"
+    setenv BOOT_A_LEFT 3
+    setenv BOOT_B_LEFT 3
+fi
+
+env export -c -s 0x4000 ${loadaddr} BOOT_ORDER BOOT_A_LEFT BOOT_B_LEFT
+fatwrite ${devtype} ${devnum}:1 ${loadaddr} rauc.env 0x4000
+
+if test -z "${rauc_part}"; then
+    reset
+fi
+
+echo "Booting RAUC slot ${rauc_slot}"
+part uuid ${devtype} ${devnum}:${rauc_part} rauc_root
+load ${devtype} ${devnum}:${rauc_part} ${loadaddr} /boot/@@KERNEL_IMAGETYPE@@
+load ${devtype} ${devnum}:${rauc_part} ${fdt_addr_r} /boot/@@KERNEL_DTB@@
+setenv bootargs console=${console} root=PARTUUID=${rauc_root} rootwait=30 rw panic=5 rauc.slot=${rauc_slot}
+booti ${loadaddr} - ${fdt_addr_r}
+echo "Booting RAUC slot ${rauc_slot} failed, resetting"
+reset

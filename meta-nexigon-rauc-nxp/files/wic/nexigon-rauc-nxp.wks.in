@@ -1,0 +1,15 @@
+# RAUC A/B layout for NXP i.MX boards booting from an SD card or eMMC.
+#
+# The BootROM loads imx-boot from offset ${IMX_BOOT_SEEK} KiB. Partition 1
+# holds the boot script and its boot counters, partitions 2 and 3 hold the
+# root filesystems of slots A and B with the kernel in /boot, and partition 4
+# holds data that persists across updates. The boot script finds the
+# partitions by their numbers, and RAUC and fstab by their names.
+
+bootloader --ptable gpt
+
+part --source rawcopy --sourceparams="file=imx-boot.tagged" --no-table --align ${IMX_BOOT_SEEK}
+part --source bootimg-partition --fstype=vfat --label uboot --part-name uboot --active --align 8192 --fixed-size 32M
+part / --source rootfs --fstype=ext4 --part-name rootfs_a --align 8192 --fixed-size 1536M
+part --source empty --part-name rootfs_b --align 8192 --fixed-size 1536M
+part --fstype=ext4 --label data --part-name data --align 8192 --fixed-size 512M

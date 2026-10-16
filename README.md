@@ -11,11 +11,13 @@ On top of that, pick the OTA layer that matches your update engine:
 - The **RAUC Layer** (`meta-nexigon-rauc`) enables OTA updates on [RAUC](https://rauc.io)-based systems.
 - The **Rugix Layer** (`meta-nexigon-rugix`) enables OTA updates on [Rugix](https://rugix.org)-based systems.
 
-The `main` branch supports Yocto 6.0 (wrynose). For Yocto 5.0 (scarthgap), use the [`scarthgap`](https://github.com/nexigon/meta-nexigon/tree/scarthgap) branch.
-
 Both OTA layers enable the system update integration of the agent for their update engine as soon as the layer is included. Set `NEXIGON_SYSTEM_UPDATES = ""` to include a layer without enabling updates. The agent periodically resolves a version tag on Nexigon Hub. If the tagged version doesn't match what's running, it downloads and installs the bundle, reboots, and reports the outcome in the `dev.nexigon.ota.status` device property. The `dev.nexigon.ota.config` device property can hold updates, restrict them to maintenance windows, and limit retries. See [OTA Updates](https://docs.nexigon.dev/reference/ota-updates/) for the full update model.
 
 Using a different update engine? Nexigon Hub provides [composable primitives](https://nexigon.cloud/blog/2026-02-19-primitives-first-architecture) (repositories, versioned packages, device properties, events) that you can integrate with any update mechanism.
+
+The **RAUC NXP Demo Layer** (`meta-nexigon-rauc-nxp`) adds RAUC A/B updates to 64-bit NXP i.MX boards. It is a demo for evaluation. See its [README](meta-nexigon-rauc-nxp/README.md).
+
+The `main` branch supports Yocto 6.0 (wrynose). For Yocto 5.0 (scarthgap), use the [`scarthgap`](https://github.com/nexigon/meta-nexigon/tree/scarthgap) branch.
 
 ## Getting Started
 
@@ -42,6 +44,8 @@ mise run build examples/qemu-x86_64-rauc.yaml
 ```
 
 Boot it in QEMU with `mise run run-qemu-x86_64` and SSH in with `mise run ssh-qemu`.
+
+For the NXP FRDM-IMX91 board, `examples/frdm-imx91-rauc.yaml` builds an image that pairs through provisioning instead of a built-in token. See the [RAUC NXP Demo Layer](meta-nexigon-rauc-nxp/README.md) for building, flashing, and pairing it.
 
 ## Credentials
 
