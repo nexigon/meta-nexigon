@@ -6,9 +6,10 @@ SRC_URI = " \
     file://nexigon.power.reboot.toml \
     file://nexigon.power.shutdown.toml \
 "
+S = "${UNPACKDIR}"
 
 do_install() {
     install -d ${D}${sysconfdir}/nexigon/agent/commands
-    install -m 0644 ${WORKDIR}/nexigon.power.reboot.toml ${D}${sysconfdir}/nexigon/agent/commands/
-    install -m 0644 ${WORKDIR}/nexigon.power.shutdown.toml ${D}${sysconfdir}/nexigon/agent/commands/
+    install -m 0644 ${UNPACKDIR}/nexigon.power.reboot.toml ${D}${sysconfdir}/nexigon/agent/commands/
+    install -m 0644 ${UNPACKDIR}/nexigon.power.shutdown.toml ${D}${sysconfdir}/nexigon/agent/commands/
 }

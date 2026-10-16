@@ -6,6 +6,7 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/Apache-2.0;md5=89aea4e17d99a7ca
 SRC_URI = "file://agent.toml \
            file://nexigon-device-fingerprint-machine-id \
            file://nexigon-device-fingerprint-random-uuid"
+S = "${UNPACKDIR}"
 
 RDEPENDS:${PN} = "nexigon-agent-service"
 
@@ -88,7 +89,7 @@ NEXIGON_OTA_RANDOMIZED_DELAY_SECS = "${@nexigon_timespan_secs(d.getVar('NEXIGON_
 
 do_install() {
     install -d ${D}${sysconfdir}/nexigon
-    install -m 0644 ${WORKDIR}/agent.toml ${D}${sysconfdir}/nexigon/agent.toml
+    install -m 0644 ${UNPACKDIR}/agent.toml ${D}${sysconfdir}/nexigon/agent.toml
 
     sed -i "s|@@HUB_URL@@|${NEXIGON_HUB_URL}|g" ${D}${sysconfdir}/nexigon/agent.toml
     sed -i "s|@@TOKEN@@|${NEXIGON_TOKEN}|g" ${D}${sysconfdir}/nexigon/agent.toml
@@ -147,12 +148,12 @@ EOF
 
     install -d ${D}${libexecdir}/nexigon
     if [ "${NEXIGON_DEVICE_FINGERPRINT}" = "machine-id" ]; then
-        install -m 0755 ${WORKDIR}/nexigon-device-fingerprint-machine-id \
+        install -m 0755 ${UNPACKDIR}/nexigon-device-fingerprint-machine-id \
             ${D}${libexecdir}/nexigon/nexigon-device-fingerprint
         sed -i "s|@@FINGERPRINT_SCRIPT@@|${libexecdir}/nexigon/nexigon-device-fingerprint|g" \
             ${D}${sysconfdir}/nexigon/agent.toml
     elif [ "${NEXIGON_DEVICE_FINGERPRINT}" = "random-uuid" ]; then
-        install -m 0755 ${WORKDIR}/nexigon-device-fingerprint-random-uuid \
+        install -m 0755 ${UNPACKDIR}/nexigon-device-fingerprint-random-uuid \
             ${D}${libexecdir}/nexigon/nexigon-device-fingerprint
         sed -i "s|@@NEXIGON_DEVICE_FINGERPRINT_FILE@@|${NEXIGON_DEVICE_FINGERPRINT_FILE}|g" \
             ${D}${libexecdir}/nexigon/nexigon-device-fingerprint
