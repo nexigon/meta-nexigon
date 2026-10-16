@@ -8,12 +8,12 @@ The **Core Layer** (`meta-nexigon-core`) is the foundation. It ships the Nexigon
 
 On top of that, pick the OTA layer that matches your update engine:
 
-- The **RAUC Layer** (`meta-nexigon-rauc`) orchestrates OTA updates on [RAUC](https://rauc.io)-based systems.
-- The **Rugix Layer** (`meta-nexigon-rugix`) orchestrates OTA updates on [Rugix](https://rugix.org)-based systems.
+- The **RAUC Layer** (`meta-nexigon-rauc`) enables OTA updates on [RAUC](https://rauc.io)-based systems.
+- The **Rugix Layer** (`meta-nexigon-rugix`) enables OTA updates on [Rugix](https://rugix.org)-based systems.
 
-Both OTA layers work the same way: a timer periodically resolves a version tag on Nexigon Hub. If the tagged version doesn't match what's running, the bundle is downloaded and installed. Throughout an update, telemetry is reported back using properties and events.
+Both OTA layers enable the system update integration of the agent for their update engine as soon as the layer is included. Set `NEXIGON_SYSTEM_UPDATES = ""` to include a layer without enabling updates. The agent periodically resolves a version tag on Nexigon Hub. If the tagged version doesn't match what's running, it downloads and installs the bundle, reboots, and reports the outcome in the `dev.nexigon.ota.status` device property. The `dev.nexigon.ota.config` device property can hold updates, restrict them to maintenance windows, and limit retries. See [OTA Updates](https://docs.nexigon.dev/reference/ota-updates/) for the full update model.
 
-Using a different update engine? The RAUC and Rugix scripts serve as reference implementations. Nexigon Hub provides [composable primitives](https://nexigon.cloud/blog/2026-02-19-primitives-first-architecture) (repositories, versioned packages, device properties, events) that you can integrate with any update mechanism.
+Using a different update engine? Nexigon Hub provides [composable primitives](https://nexigon.cloud/blog/2026-02-19-primitives-first-architecture) (repositories, versioned packages, device properties, events) that you can integrate with any update mechanism.
 
 ## Getting Started
 
@@ -69,7 +69,7 @@ The upload script auto-detects Rugix (`.rugixb`) and RAUC (`.raucb`) bundles and
 mise run test
 ```
 
-The test suite boots real QEMU images, talks to a live Nexigon Hub instance, and exercises the full OTA pipeline: bundle upload, version resolution, install, reboot, and commit/rollback. Tests auto-detect which update engine was built and skip the rest. Run a specific suite with `mise run test -m rugix` or `mise run test -m rauc`.
+The test suite boots real QEMU images, talks to a live Nexigon Hub instance, and exercises the full OTA pipeline: bundle upload, version resolution, install, reboot, commit, and rollback detection, as well as holds, maintenance windows, retries, and checkpoint releases. The OTA tests detect the update engine from the agent configuration of the built image.
 
 ## Configuration Reference
 
@@ -81,12 +81,15 @@ See the example Kas configs under `examples/` for working setups. The key variab
 | `NEXIGON_TOKEN`              | `nexigon-agent-conf` | Deployment token. Required.                        |
 | `NEXIGON_DEVICE_FINGERPRINT` | `nexigon-agent-conf` | Fingerprint mechanism. Required.                   |
 | `NEXIGON_AGENT_SSL_DIR`      | `nexigon-agent-conf` | Persistent SSL cert/key directory for A/B systems. |
-| `NEXIGON_OTA_REPOSITORY`     | `nexigon-*-ota`      | Repository on Nexigon Hub. Required.               |
-| `NEXIGON_OTA_PACKAGE`        | `nexigon-*-ota`      | Package within the repository. Required.           |
-| `NEXIGON_OTA_TAG`            | `nexigon-*-ota`      | Version tag to track (default: `"stable"`).        |
-| `NEXIGON_OTA_INTERVAL`       | `nexigon-*-ota`      | Update check interval (default: `"4h"`).           |
-| `NEXIGON_OTA_RANDOMIZED_DELAY` | `nexigon-*-ota`    | Randomized delay added to each timer activation, as a systemd time span (default: `"300"`, i.e. 5 minutes). |
-| `NEXIGON_OTA_ACCURACY`       | `nexigon-*-ota`      | Timer accuracy (systemd `AccuracySec=`); upper bound on how much firings may be coalesced. Lower it for short intervals (default: `"1min"`). |
+| `NEXIGON_SYSTEM_UPDATES`     | `nexigon-agent-conf` | Update engine of the agent: `"rugix"`, `"rauc"`, or `""` for none. The OTA layers set it. |
+| `NEXIGON_OTA_REPOSITORY`     | `nexigon-agent-conf` | Repository on Nexigon Hub.                         |
+| `NEXIGON_OTA_PACKAGE`        | `nexigon-agent-conf` | Package within the repository.                     |
+| `NEXIGON_OTA_TAG`            | `nexigon-agent-conf` | Version tag to track (default: `"stable"`).        |
+| `NEXIGON_OTA_INTERVAL`       | `nexigon-agent-conf` | Update check interval, such as `"1h 30min"` (default: `"4h"`). |
+| `NEXIGON_OTA_RANDOMIZED_DELAY` | `nexigon-agent-conf` | Maximum random delay of scheduled update checks, which keeps devices from reaching Nexigon Hub at once (default: `"5min"`). |
+| `NEXIGON_OTA_RUGIX_USE_BUNDLE_HASH` | `nexigon-agent-conf` | Verify Rugix bundles with the hash from the asset metadata when present (default: `"0"`). |
+
+Without `NEXIGON_OTA_REPOSITORY` and `NEXIGON_OTA_PACKAGE`, devices do not update until the `dev.nexigon.ota.config` device property supplies a path. The `nexigon.ota.check` command, which triggers an immediate update check, requires `NEXIGON_COMMANDS_ENABLED = "1"`.
 
 ## Licensing
 

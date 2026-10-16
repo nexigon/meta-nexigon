@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import dataclasses
 import hashlib
-import json
 import logging
 import os
-import shlex
+import time
+import tomllib
 import uuid
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -46,6 +47,9 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "rugix: tests requiring a Rugix image")
     config.addinivalue_line("markers", "rauc: tests requiring a RAUC image")
+    config.addinivalue_line(
+        "markers", "allow_agent_warnings: tests expecting agent warnings"
+    )
 
 
 def pytest_collection_modifyitems(
@@ -103,7 +107,11 @@ def project_id() -> projects.ProjectId:
 
 @pytest.fixture(scope="session")
 def hub(hub_url: str, api_token: str) -> Generator[Client]:
-    with Client(hub_url, token=api_token) as client:
+    with Client(
+        hub_url,
+        token=api_token,
+        dangerous_allow_plaintext=hub_url.startswith("http://"),
+    ) as client:
         yield client
 
 
@@ -142,7 +150,8 @@ def vm(deploy_dir: Path, request: pytest.FixtureRequest) -> Generator[VMHandle]:
     with VMHandle.start(config) as handle:
         request.node._vm_handle = handle
         yield handle
-        _assert_no_agent_warnings(handle)
+        if not request.node.get_closest_marker("allow_agent_warnings"):
+            _assert_no_agent_warnings(handle)
 
 
 def _assert_no_agent_warnings(vm: VMHandle) -> None:
@@ -152,7 +161,12 @@ def _assert_no_agent_warnings(vm: VMHandle) -> None:
         check=False,
         hide=True,
     )
-    output = result.stdout.strip()
+    # Local test Hubs without TLS make the agent warn about plaintext connections.
+    output = "\n".join(
+        line
+        for line in result.stdout.strip().splitlines()
+        if "explicitly allowed plaintext channel" not in line
+    )
     if output:
         pytest.fail(
             "nexigon-agent emitted warning-or-higher journal entries:\n" + output
@@ -161,7 +175,21 @@ def _assert_no_agent_warnings(vm: VMHandle) -> None:
 
 @pytest.fixture
 def device_id(vm: VMHandle) -> devices.DeviceId:
-    """Ask the agent running on the VM for its device ID."""
+    """Ask the agent running on the VM for its device ID.
+
+    The command connects to Nexigon Hub like the agent service. On first boot,
+    both would create the device identity concurrently, so the command waits
+    until the service has connected.
+    """
+    deadline = time.monotonic() + 180
+    while not vm.run(
+        ["sh", "-c", "journalctl -u nexigon-agent --no-pager | grep -q device_id="],
+        check=False,
+        hide=True,
+    ).ok:
+        if time.monotonic() > deadline:
+            pytest.fail("the agent did not connect to Nexigon Hub")
+        time.sleep(2)
     result = vm.run(["nexigon-agent", "device", "id"], hide=True)
     device_id = devices.DeviceId(result.stdout.strip())
     logger.info("VM device ID: %s", device_id)
@@ -170,16 +198,23 @@ def device_id(vm: VMHandle) -> devices.DeviceId:
 
 @dataclasses.dataclass
 class OtaTestEnv:
-    """State created by the ``ota_test_env`` fixture."""
+    """State created by the ``ota_test_env`` fixture.
+
+    The device tracks the ``test-<id>`` channel tag of its package through the
+    ``dev.nexigon.ota.config`` property and runs the fake version ``v1``. Bundles
+    published by the test install the built image, whose version string is
+    ``built_version``.
+    """
 
     test_id: str
     repo_name: str
     package_name: str
     repository_id: repositories.RepositoryId
     package_id: repositories.PackageId
+    device_id: devices.DeviceId
     image_id: str
     bundle_ext: str
-    config_path: str
+    built_version: str
     v1_version_id: repositories.PackageVersionId
     _version_ids: list[repositories.PackageVersionId]
     _hub: Client
@@ -189,49 +224,70 @@ class OtaTestEnv:
     def v1(self) -> str:
         return f"{self.test_id}-v1"
 
-    def _find_bundle(self) -> Path:
-        """Locate the bundle file in the deploy directory."""
-        # Rugix: IMAGE_BASENAME.rugixb; RAUC: separate bundle recipe output.
-        candidates = list(self._deploy_dir.glob(f"*.{self.bundle_ext}"))
-        # Prefer non-timestamped symlinks.
-        symlinks = [c for c in candidates if c.is_symlink()]
-        result = symlinks[0] if symlinks else candidates[0] if candidates else None
-        if result is None:
-            raise FileNotFoundError(
-                f"No .{self.bundle_ext} bundle found in {self._deploy_dir}"
+    @property
+    def engine(self) -> str:
+        """Name of the update engine as reported in the status."""
+        return "rugix" if self.bundle_ext == "rugixb" else "rauc"
+
+    def path(self, version: str | None = None) -> str:
+        """Version path within the test package, defaulting to the channel tag."""
+        return f"{self.repo_name}/{self.package_name}/{version or self.test_id}"
+
+    def set_config(self, **config: json_types.JsonValue) -> None:
+        """Set the desired state, tracking the channel tag unless a path is given."""
+        self._hub.execute(
+            devices.SetDevicePropertyAction(
+                device_id=self.device_id,
+                name="dev.nexigon.ota.config",
+                value={"path": self.path(), **config},
+                protected=True,
             )
-        return result
-
-    def configure_vm(self, vm: VMHandle, version: str) -> None:
-        """Rewrite the OTA config path and IMAGE_VERSION, preserving other settings."""
-        existing = json.loads(
-            vm.run(["cat", self.config_path], hide=True).stdout
-        )
-        existing["path"] = f"{self.repo_name}/{self.package_name}/{self.test_id}"
-        config = json.dumps(existing)
-        vm.run(
-            ["sh", "-c", f"echo {shlex.quote(config)} > {self.config_path}"],
-            hide=True,
-        )
-        vm.run(
-            [
-                "sed",
-                "-i",
-                f"s/^IMAGE_VERSION=.*/IMAGE_VERSION={version}/",
-                "/etc/os-release",
-            ],
-            hide=True,
         )
 
-    def publish_v2(self, bundle_content: bytes | None = None) -> str:
-        """Create v2 with an update bundle and reassign the channel tag.
+    def check(self, vm: VMHandle) -> None:
+        """Run a check by restarting the agent, which checks right after it starts."""
+        vm.run(["systemctl", "restart", "nexigon-agent"], hide=True)
 
-        If *bundle_content* is given it is uploaded as-is (useful for testing
-        corrupt bundles).  Otherwise the real built bundle is used.
+    def status(self) -> dict[str, Any]:
+        prop = self._hub.execute(
+            devices.GetDevicePropertyAction(
+                device_id=self.device_id, name="dev.nexigon.ota.status"
+            )
+        )
+        if prop.result != "Found" or not isinstance(prop.value, dict):
+            return {}
+        return prop.value
+
+    def wait_for_status(
+        self, predicate: Callable[[dict[str, Any]], bool], timeout: float = 180
+    ) -> dict[str, Any]:
+        """Poll the reported status until it satisfies the predicate."""
+        deadline = time.monotonic() + timeout
+        status: dict[str, Any] = {}
+        while time.monotonic() < deadline:
+            try:
+                status = self.status()
+            except httpx.HTTPError:
+                status = {}
+            if predicate(status):
+                return status
+            time.sleep(2)
+        raise AssertionError(f"status did not reach the expected state: {status}")
+
+    def publish(
+        self,
+        *,
+        tags: list[str],
+        bundle_content: bytes | None = None,
+        image_version: str | None = None,
+        base: repositories.PackageVersionId | None = None,
+    ) -> repositories.PackageVersionId:
+        """Publish a version with a bundle, reassigning the given tags.
+
+        Without explicit content, the bundle is the built image, whose version
+        string is ``built_version``.
         """
-        v2 = f"{self.test_id}-v2"
         bundle_path = self._find_bundle()
-
         bundle_data = (
             bundle_content if bundle_content is not None else bundle_path.read_bytes()
         )
@@ -243,36 +299,27 @@ class OtaTestEnv:
                 digest=digest.Digest(f"sha256_{file_digest}"),
             )
         )
-
         upload_url = self._hub.execute(
-            repositories.IssueAssetUploadUrlAction(
-                asset_id=asset_output.asset_id,
-            )
+            repositories.IssueAssetUploadUrlAction(asset_id=asset_output.asset_id)
         )
         httpx.put(
-            upload_url.url,
-            content=bundle_data,
-            timeout=httpx.Timeout(300),
+            upload_url.url, content=bundle_data, timeout=httpx.Timeout(300)
         ).raise_for_status()
 
         version_output = self._hub.execute(
             repositories.CreatePackageVersionAction(
                 package_id=self.package_id,
-                tags=[
-                    repositories.AddTagItem(tag=self.test_id, reassign=True),
-                    repositories.AddTagItem(tag=v2),
-                ],
-                metadata={"imageVersion": v2},
+                tags=[repositories.AddTagItem(tag=tag, reassign=True) for tag in tags],
+                metadata={"imageVersion": image_version or self.built_version},
+                base_version_id=base,
             )
         )
         self._version_ids.append(version_output.version_id)
 
         asset_metadata: dict[str, json_types.JsonValue] | None = None
-        if self.bundle_ext == "rugixb":
+        if self.bundle_ext == "rugixb" and bundle_content is None:
             hash_path = bundle_path.with_suffix(bundle_path.suffix + ".hash")
-            bundle_hash = hash_path.read_text().strip()
-            asset_metadata = {"rugix": {"bundleHash": bundle_hash}}
-
+            asset_metadata = {"rugix": {"bundleHash": hash_path.read_text().strip()}}
         self._hub.execute(
             repositories.AddPackageVersionAssetAction(
                 version_id=version_output.version_id,
@@ -281,43 +328,75 @@ class OtaTestEnv:
                 metadata=asset_metadata,
             )
         )
-        logger.info(
-            "OTA v2 %s published (version_id=%s)", v2, version_output.version_id
+        logger.info("published %s (version_id=%s)", tags, version_output.version_id)
+        return version_output.version_id
+
+    def publish_v2(
+        self, bundle_content: bytes | None = None
+    ) -> repositories.PackageVersionId:
+        """Publish the built image as the new version of the channel."""
+        return self.publish(
+            tags=[self.test_id, self.built_version], bundle_content=bundle_content
         )
-        return v2
+
+    def _find_bundle(self) -> Path:
+        """Locate the bundle file in the deploy directory."""
+        candidates = list(self._deploy_dir.glob(f"*.{self.bundle_ext}"))
+        # Prefer non-timestamped symlinks.
+        symlinks = [c for c in candidates if c.is_symlink()]
+        result = symlinks[0] if symlinks else candidates[0] if candidates else None
+        if result is None:
+            raise FileNotFoundError(
+                f"No .{self.bundle_ext} bundle found in {self._deploy_dir}"
+            )
+        return result
+
+
+def _set_image_version(vm: VMHandle, version: str) -> None:
+    vm.run(
+        [
+            "sed",
+            "-i",
+            f"s/^IMAGE_VERSION=.*/IMAGE_VERSION={version}/",
+            "/etc/os-release",
+        ],
+        hide=True,
+    )
+
+
+def _os_release_field(vm: VMHandle, name: str) -> str:
+    return vm.run(
+        ["sh", "-c", f". /etc/os-release && echo ${name}"], hide=True
+    ).stdout.strip()
 
 
 def _detect_ota_variant(vm: VMHandle) -> tuple[str, str]:
-    """Return (bundle_ext, config_path) based on what's on the VM."""
-    for ext, path in [
-        ("rugixb", "/etc/nexigon-rugix-ota.json"),
-        ("raucb", "/etc/nexigon-rauc-ota.json"),
-    ]:
-        result = vm.run(["test", "-f", path], check=False, hide=True)
-        if result.ok:
-            return ext, path
-    pytest.fail("No OTA config found (neither rugix nor rauc)")
+    """Return the bundle extension and default path of the enabled integration."""
+    config = tomllib.loads(vm.run(["cat", "/etc/nexigon/agent.toml"], hide=True).stdout)
+    integrations = config.get("integrations", {})
+    for engine, ext in [("rugix", "rugixb"), ("rauc", "raucb")]:
+        updates = integrations.get(engine, {}).get("system-updates", {})
+        if updates.get("enabled"):
+            return ext, updates["path"]
+    pytest.fail("no system update integration is enabled in the agent configuration")
     raise AssertionError
 
 
 @pytest.fixture
-def ota_test_env(hub: Client, vm: VMHandle, deploy_dir: Path) -> Generator[OtaTestEnv]:
+def ota_test_env(
+    hub: Client, vm: VMHandle, device_id: devices.DeviceId, deploy_dir: Path
+) -> Generator[OtaTestEnv]:
     """Set up an isolated OTA test environment.
 
-    Auto-detects whether the image uses Rugix or RAUC.  Creates a
-    ``test-<id>`` channel tag, a v1 version tagged with both ``test-<id>``
-    and ``test-<id>-v1``, rewrites the VM's OTA config to point at the
-    channel tag, and sets ``IMAGE_VERSION`` to v1.
+    Detects the enabled integration, creates a ``test-<id>`` channel tag with a
+    version ``v1``, makes the device run ``v1``, and points its desired state at
+    the channel tag.
     """
     test_id = f"test-{uuid.uuid4().hex[:12]}"
-    bundle_ext, config_path = _detect_ota_variant(vm)
-
-    ota_config = json.loads(vm.run(["cat", config_path], hide=True).stdout)
-    repo_name, package_name, _tag = ota_config["path"].split("/")
-
-    image_id = vm.run(
-        ["sh", "-c", ". /etc/os-release && echo $IMAGE_ID"], hide=True
-    ).stdout.strip()
+    bundle_ext, default_path = _detect_ota_variant(vm)
+    repo_name, package_name, _tag = default_path.split("/")
+    image_id = _os_release_field(vm, "IMAGE_ID")
+    built_version = _os_release_field(vm, "IMAGE_VERSION")
 
     resolved = hub.execute(
         repositories.ResolvePackageByPathAction(
@@ -337,29 +416,35 @@ def ota_test_env(hub: Client, vm: VMHandle, deploy_dir: Path) -> Generator[OtaTe
             metadata={"imageVersion": v1},
         )
     )
-    version_ids: list[repositories.PackageVersionId] = [version_output.version_id]
-
     env = OtaTestEnv(
         test_id=test_id,
         repo_name=repo_name,
         package_name=package_name,
         repository_id=resolved.repository_id,
         package_id=resolved.package_id,
+        device_id=device_id,
         image_id=image_id,
         bundle_ext=bundle_ext,
-        config_path=config_path,
+        built_version=built_version,
         v1_version_id=version_output.version_id,
-        _version_ids=version_ids,
+        _version_ids=[version_output.version_id],
         _hub=hub,
         _deploy_dir=deploy_dir,
     )
-    env.configure_vm(vm, v1)
+    _set_image_version(vm, v1)
+    env.set_config()
     logger.info("OTA env %s ready (v1=%s)", test_id, version_output.version_id)
 
     yield env
 
-    for vid in version_ids:
+    # Delete dependent versions before their bases.
+    for vid in reversed(env._version_ids):
         hub.execute(repositories.DeletePackageVersionAction(version_id=vid))
+    hub.execute(
+        devices.RemoveDevicePropertyAction(
+            device_id=device_id, name="dev.nexigon.ota.config"
+        )
+    )
 
 
 def _dump_test_artifacts(item: pytest.Item) -> None:
