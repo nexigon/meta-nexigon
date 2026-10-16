@@ -14,8 +14,9 @@ local_conf_header:
     DISTRO_FEATURES:append = " rauc"
     # Install RAUC and Nexigon OTA tooling.
     IMAGE_INSTALL:append = " rauc nexigon-rauc-ota"
-    # Persist agent identity across A/B slot switches.
+    # Persist agent identity and saved credentials across A/B slot switches.
     NEXIGON_AGENT_SSL_DIR = "/data/nexigon/agent/ssl"
+    NEXIGON_AGENT_DATA_DIR = "/data/nexigon/agent"
     NEXIGON_DEVICE_FINGERPRINT = "random-uuid"
     NEXIGON_DEVICE_FINGERPRINT_FILE = "/data/nexigon/agent/device-fingerprint"
   rauc-keys: |

@@ -10,12 +10,20 @@ S = "${UNPACKDIR}"
 
 RDEPENDS:${PN} = "nexigon-agent-service"
 
+# Static credentials. Without them, the agent uses the credentials saved by
+# provisioning.
 NEXIGON_HUB_URL ??= ""
 NEXIGON_TOKEN ??= ""
+# Accept a provisioning token on the local network while the device has no
+# credentials. Requires empty static credentials.
+NEXIGON_PROVISIONING ??= "0"
 NEXIGON_COMMANDS_ENABLED ??= "0"
 NEXIGON_TERMINAL_ENABLED ??= "0"
 NEXIGON_TERMINAL_USER ??= "root"
 NEXIGON_AGENT_SSL_DIR ??= ""
+# Data directory of the agent, including the credentials saved by
+# provisioning. Empty uses the agent default (/var/lib/nexigon/agent).
+NEXIGON_AGENT_DATA_DIR ??= ""
 NEXIGON_AGENT_EXTRA_CONF ??= ""
 
 # Device fingerprint source:
@@ -54,6 +62,14 @@ python do_validate_config() {
         bb.fatal('NEXIGON_DEVICE_FINGERPRINT is not set - must be "machine-id", "random-uuid", or a path to a custom script')
     if fp == 'random-uuid' and not d.getVar('NEXIGON_DEVICE_FINGERPRINT_FILE'):
         bb.fatal('NEXIGON_DEVICE_FINGERPRINT_FILE must be set when using random-uuid fingerprint')
+    if bool(d.getVar('NEXIGON_HUB_URL')) != bool(d.getVar('NEXIGON_TOKEN')):
+        bb.fatal('NEXIGON_HUB_URL and NEXIGON_TOKEN must be set together')
+    if d.getVar('NEXIGON_PROVISIONING') not in ('0', '1'):
+        bb.fatal('NEXIGON_PROVISIONING must be "0" or "1"')
+    if d.getVar('NEXIGON_PROVISIONING') == '1' and d.getVar('NEXIGON_HUB_URL'):
+        bb.fatal('NEXIGON_PROVISIONING requires empty NEXIGON_HUB_URL and NEXIGON_TOKEN')
+    if d.getVar('NEXIGON_PROVISIONING') == '1' and '[provisioning]' in (d.getVar('NEXIGON_AGENT_EXTRA_CONF') or ''):
+        bb.fatal('NEXIGON_AGENT_EXTRA_CONF must not contain [provisioning] when NEXIGON_PROVISIONING is "1"')
     updates = d.getVar('NEXIGON_SYSTEM_UPDATES')
     if updates not in ('', 'rugix', 'rauc'):
         bb.fatal('NEXIGON_SYSTEM_UPDATES must be "", "rugix", or "rauc"')
@@ -91,24 +107,38 @@ do_install() {
     install -d ${D}${sysconfdir}/nexigon
     install -m 0644 ${UNPACKDIR}/agent.toml ${D}${sysconfdir}/nexigon/agent.toml
 
-    sed -i "s|@@HUB_URL@@|${NEXIGON_HUB_URL}|g" ${D}${sysconfdir}/nexigon/agent.toml
-    sed -i "s|@@TOKEN@@|${NEXIGON_TOKEN}|g" ${D}${sysconfdir}/nexigon/agent.toml
+    if [ -n "${NEXIGON_HUB_URL}" ]; then
+        cat >> ${D}${sysconfdir}/nexigon/agent.toml <<EOF
+hub-url = "${NEXIGON_HUB_URL}"
+token = "${NEXIGON_TOKEN}"
+EOF
+    fi
 
+    # Directories that the agent needs mounted before it starts.
+    mounts=""
     if [ -n "${NEXIGON_AGENT_SSL_DIR}" ]; then
         cat >> ${D}${sysconfdir}/nexigon/agent.toml <<EOF
-
 ssl-cert = "${NEXIGON_AGENT_SSL_DIR}/cert.pem"
 ssl-key = "${NEXIGON_AGENT_SSL_DIR}/key.pem"
 EOF
+        mounts="$mounts ${NEXIGON_AGENT_SSL_DIR}"
+    fi
+    if [ -n "${NEXIGON_AGENT_DATA_DIR}" ]; then
+        echo "data-path = \"${NEXIGON_AGENT_DATA_DIR}\"" >> ${D}${sysconfdir}/nexigon/agent.toml
+        mounts="$mounts ${NEXIGON_AGENT_DATA_DIR}"
+    fi
+    if [ -n "$mounts" ]; then
         install -d ${D}${systemd_system_unitdir}/nexigon-agent.service.d
-        cat > ${D}${systemd_system_unitdir}/nexigon-agent.service.d/ssl-dir.conf <<EOF
-[Unit]
-RequiresMountsFor=${NEXIGON_AGENT_SSL_DIR}
-EOF
+        printf '[Unit]\nRequiresMountsFor=%s\n' "$mounts" \
+            > ${D}${systemd_system_unitdir}/nexigon-agent.service.d/persistent-dirs.conf
     fi
 
     if [ -n "${NEXIGON_AGENT_EXTRA_CONF}" ]; then
         printf '\n%b\n' "${NEXIGON_AGENT_EXTRA_CONF}" >> ${D}${sysconfdir}/nexigon/agent.toml
+    fi
+
+    if [ "${NEXIGON_PROVISIONING}" = "1" ]; then
+        printf '\n[provisioning]\nenabled = true\n' >> ${D}${sysconfdir}/nexigon/agent.toml
     fi
 
     if [ "${NEXIGON_COMMANDS_ENABLED}" = "1" ]; then
