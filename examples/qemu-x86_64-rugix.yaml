@@ -55,7 +55,7 @@ repos:
 
   meta-rugix:
     url: "https://github.com/rugix/meta-rugix.git"
-    branch: main
+    branch: scarthgap
     layers:
       meta-rugix-core:
       meta-rugix-qemu-x86_64-grub:
