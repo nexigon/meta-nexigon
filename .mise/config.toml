@@ -129,10 +129,23 @@ depends = ["lint", "typecheck"]
 # ---- RAUC keys ------------------------------------------------------------
 
 [tasks."generate-rauc-keys"]
-description = "Generate development signing keys for RAUC."
+description = "Generate development signing keys for RAUC, or write them from RAUC_DEV_* variables."
 run = '''
 set -euo pipefail
 dir="{{ vars.rauc_keys_dir }}"
+# Shared development keys, for example from CI secrets, take precedence.
+if [ -n "${RAUC_DEV_CA_CERT:-}${RAUC_DEV_SIGNING_CERT:-}${RAUC_DEV_SIGNING_KEY:-}" ]; then
+    if [ -z "${RAUC_DEV_CA_CERT:-}" ] || [ -z "${RAUC_DEV_SIGNING_CERT:-}" ] || [ -z "${RAUC_DEV_SIGNING_KEY:-}" ]; then
+        echo "Set all of RAUC_DEV_CA_CERT, RAUC_DEV_SIGNING_CERT, and RAUC_DEV_SIGNING_KEY." >&2
+        exit 1
+    fi
+    mkdir -p "$dir"
+    printf '%s\n' "$RAUC_DEV_CA_CERT" > "$dir/ca.cert.pem"
+    printf '%s\n' "$RAUC_DEV_SIGNING_CERT" > "$dir/development-1.cert.pem"
+    (umask 077 && printf '%s\n' "$RAUC_DEV_SIGNING_KEY" > "$dir/development-1.key.pem")
+    echo "RAUC development keys written to $dir from RAUC_DEV_* variables"
+    exit 0
+fi
 if [ -f "$dir/ca.cert.pem" ]; then
     echo "Keys already exist in $dir — delete the directory to regenerate."
     exit 0

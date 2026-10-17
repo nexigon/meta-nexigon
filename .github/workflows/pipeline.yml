@@ -33,9 +33,24 @@ jobs:
       - name: Set IMAGE_VERSION
         run: echo "IMAGE_VERSION=build-$(date +%Y%m%d%H%M%S)-$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
 
-      - name: Generate RAUC keys
+      # The secrets hold shared development keys, so that bundles of different
+      # builds install on each other's images. Without them, for example on
+      # forks, the build signs with throwaway keys.
+      - name: Set up RAUC keys
         if: contains(matrix.config, 'rauc')
-        run: mise run generate-rauc-keys
+        env:
+          RAUC_DEV_CA_CERT: ${{ secrets.RAUC_DEV_CA_CERT }}
+          RAUC_DEV_SIGNING_CERT: ${{ secrets.RAUC_DEV_SIGNING_CERT }}
+          RAUC_DEV_SIGNING_KEY: ${{ secrets.RAUC_DEV_SIGNING_KEY }}
+        run: |
+          if [ -z "$RAUC_DEV_CA_CERT$RAUC_DEV_SIGNING_CERT$RAUC_DEV_SIGNING_KEY" ]; then
+            echo "::warning::RAUC_DEV_* secrets are not set, signing with throwaway keys"
+          fi
+          mise run generate-rauc-keys
 
       - name: Build
         run: mise run build ${{ matrix.config }}
+
+      - name: Remove RAUC keys
+        if: always()
+        run: rm -rf rauc-keys
