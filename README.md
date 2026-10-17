@@ -21,15 +21,6 @@ Using a different update engine? Nexigon Hub provides [composable primitives](ht
 
 The examples use [Kas](https://kas.readthedocs.io) for build configuration. Toolchain and tasks are managed with [mise](https://mise.jdx.dev).
 
-Set your Nexigon Hub URL and deployment token in a `.env` file:
-
-```sh
-NEXIGON_HUB_URL="https://eu.nexigon.cloud"
-NEXIGON_TOKEN="deployment_..."
-NEXIGON_OTA_REPOSITORY="your-repo"
-NEXIGON_OTA_PACKAGE="your-package"
-```
-
 Build an example image:
 
 ```sh
@@ -43,12 +34,22 @@ mise run build examples/qemu-x86_64-rauc.yaml
 
 Boot it in QEMU with `mise run run-qemu-x86_64` and SSH in with `mise run ssh-qemu`.
 
+The example images contain no credentials. Instead, a device pairs with a project on Nexigon Hub after its first boot. Create a pairing key in the project and send it to the device together with the domain of your Hub. For the QEMU VM, run:
+
+```sh
+mise run pair-qemu eu.nexigon.cloud,<pairing key>
+```
+
+The images also contain no update package, so you choose one for each device under **Configure Updates** in Nexigon Hub. To build a package into the image, set `NEXIGON_OTA_REPOSITORY` and `NEXIGON_OTA_PACKAGE`, for example in a `.env` file.
+
 ## Credentials
 
 Nexigon Agent connects to Nexigon Hub with static credentials or with credentials obtained through provisioning:
 
 - **Static credentials.** Set `NEXIGON_HUB_URL` to the URL of Nexigon Hub and `NEXIGON_TOKEN` to a deployment token. Every device built from the image connects on its first boot.
-- **Provisioning.** Set `NEXIGON_PROVISIONING = "1"` and leave `NEXIGON_HUB_URL` and `NEXIGON_TOKEN` empty. Until it is paired, the agent accepts a one-time provisioning token on port 6947 and then saves the credentials that it receives. See [Device Provisioning](https://docs.nexigon.dev/guides/provisioning/). To configure the listener, for example its port, leave `NEXIGON_PROVISIONING` at `"0"` and add a `[provisioning]` table to `NEXIGON_AGENT_EXTRA_CONF` instead.
+- **Provisioning.** Set `NEXIGON_PROVISIONING = "1"` and leave `NEXIGON_HUB_URL` and `NEXIGON_TOKEN` empty. Until it is paired, the agent accepts a one-time pairing key on port 6947 and then saves the credentials that it receives. Anyone who can reach the port can pair an unpaired device. See [Device Provisioning](https://docs.nexigon.dev/guides/provisioning/). To configure the listener, for example its port, leave `NEXIGON_PROVISIONING` at `"0"` and add a `[provisioning]` table to `NEXIGON_AGENT_EXTRA_CONF` instead.
+
+The examples use provisioning. To build them with static credentials, set `NEXIGON_PROVISIONING = "0"` together with the credentials in `local.conf`, for example through an additional Kas configuration.
 
 With neither, the agent uses credentials saved by an earlier provisioning and fails to start if there are none. A production image installed by an update after provisioning works this way.
 
@@ -80,7 +81,9 @@ The upload script auto-detects Rugix (`.rugixb`) and RAUC (`.raucb`) bundles and
 mise run test
 ```
 
-The test suite boots real QEMU images, talks to a live Nexigon Hub instance, and exercises the full OTA pipeline: bundle upload, version resolution, install, reboot, commit, and rollback detection, as well as holds, maintenance windows, retries, and checkpoint releases. The OTA tests detect the update engine from the agent configuration of the built image.
+The test suite boots real QEMU images, talks to a live Nexigon Hub instance, and exercises the full OTA pipeline: bundle upload, version resolution, install, reboot, commit, and rollback detection, as well as holds, maintenance windows, retries, and checkpoint releases. The OTA tests detect the update engine and the package from the agent configuration of the built image, so build the image with `NEXIGON_OTA_REPOSITORY` and `NEXIGON_OTA_PACKAGE`.
+
+Set `NEXIGON_HUB_URL`, `TESTS_API_TOKEN`, and `TESTS_PROJECT_ID` for the Hub and the project. The tests pair each VM with the project through provisioning.
 
 ## Configuration Reference
 

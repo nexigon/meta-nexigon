@@ -4,9 +4,6 @@ header:
   version: 14
 
 env:
-  NEXIGON_HUB_URL: ""
-  NEXIGON_TOKEN: ""
-
   NEXIGON_OTA_REPOSITORY: ""
   NEXIGON_OTA_PACKAGE: ""
   NEXIGON_OTA_TAG: "stable"
@@ -38,7 +35,9 @@ local_conf_header:
     IMAGE_INSTALL:append = " networkmanager"
     PACKAGECONFIG:append:pn-systemd = " networkd resolved"
 
-    # Nexigon-specific configuration.
+    # Nexigon-specific configuration. Devices pair through provisioning, so
+    # that images contain no credentials.
+    NEXIGON_PROVISIONING = "1"
     NEXIGON_COMMANDS_ENABLED = "1"
     NEXIGON_TERMINAL_ENABLED = "1"
     NEXIGON_TERMINAL_USER = "root"

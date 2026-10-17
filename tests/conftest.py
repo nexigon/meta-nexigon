@@ -8,6 +8,7 @@ import logging
 import os
 import time
 import tomllib
+import urllib.parse
 import uuid
 from collections.abc import Callable, Generator
 from pathlib import Path
@@ -25,6 +26,7 @@ from nexigon_hub_sdk.api_types import (
     repositories,
 )
 from rugix_testkit import Drive, Pflash, VMConfig, VMHandle
+from rugix_testkit.qemu.config import find_free_port
 
 logger = logging.getLogger(__name__)
 
@@ -132,9 +134,26 @@ def deploy_dir(build_dir: Path) -> Path:
 
 
 @pytest.fixture
-def vm(deploy_dir: Path, request: pytest.FixtureRequest) -> Generator[VMHandle]:
+def ports() -> tuple[int, int]:
+    """Host ports forwarded to the SSH server and the provisioning endpoint."""
+    ssh_port = find_free_port()
+    while (pairing_port := find_free_port()) == ssh_port:
+        pass
+    return ssh_port, pairing_port
+
+
+@pytest.fixture
+def vm(
+    deploy_dir: Path, ports: tuple[int, int], request: pytest.FixtureRequest
+) -> Generator[VMHandle]:
+    ssh_port, pairing_port = ports
     config = VMConfig(
         arch="x86_64",
+        ssh_port=ssh_port,
+        net=(
+            "user,model=virtio-net-pci"
+            f",hostfwd=tcp::{ssh_port}-:22,hostfwd=tcp::{pairing_port}-:6947"
+        ),
         drives=[
             Drive(
                 file=deploy_dir / IMAGE_NAME,
@@ -174,13 +193,22 @@ def _assert_no_agent_warnings(vm: VMHandle) -> None:
 
 
 @pytest.fixture
-def device_id(vm: VMHandle) -> devices.DeviceId:
-    """Ask the agent running on the VM for its device ID.
+def device_id(
+    vm: VMHandle,
+    hub: Client,
+    hub_url: str,
+    project_id: projects.ProjectId,
+    ports: tuple[int, int],
+) -> devices.DeviceId:
+    """Pair the agent running on the VM with the test project and return its ID.
 
-    The command connects to Nexigon Hub like the agent service. On first boot,
-    both would create the device identity concurrently, so the command waits
-    until the service has connected.
+    The images pair through provisioning, so the fixture redeems a pairing key
+    through the provisioning endpoint of the agent. Then it asks the agent for
+    its device ID. The command connects to Nexigon Hub like the agent service.
+    On first boot, both would create the device identity concurrently, so the
+    command waits until the service has connected.
     """
+    _pair(hub, hub_url, project_id, ports[1])
     deadline = time.monotonic() + 180
     while not vm.run(
         ["sh", "-c", "journalctl -u nexigon-agent --no-pager | grep -q device_id="],
@@ -194,6 +222,33 @@ def device_id(vm: VMHandle) -> devices.DeviceId:
     device_id = devices.DeviceId(result.stdout.strip())
     logger.info("VM device ID: %s", device_id)
     return device_id
+
+
+def _pair(
+    hub: Client, hub_url: str, project_id: projects.ProjectId, pairing_port: int
+) -> None:
+    """Redeem a new pairing key through the provisioning endpoint of the agent."""
+    key = hub.execute(
+        projects.CreateDevicePairingKeyAction(project_id=project_id)
+    ).pairing_key
+    # Without a domain, the agent redeems the key at the endpoints of its
+    # configuration, which may point to a test Hub without TLS.
+    url = urllib.parse.urlsplit(hub_url)
+    pairing = f"{url.netloc},{key}" if url.scheme == "https" else key
+    deadline = time.monotonic() + 180
+    while True:
+        try:
+            response = httpx.post(
+                f"http://127.0.0.1:{pairing_port}/pair", content=pairing, timeout=60
+            )
+            break
+        except httpx.TransportError:
+            # The endpoint is not listening yet.
+            if time.monotonic() > deadline:
+                pytest.fail("the provisioning endpoint of the agent did not respond")
+            time.sleep(2)
+    if response.is_error:
+        pytest.fail(f"pairing the device failed: {response.text}")
 
 
 @dataclasses.dataclass

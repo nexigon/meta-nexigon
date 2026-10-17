@@ -15,11 +15,6 @@ jobs:
     name: Build
     runs-on: [self-hosted, nixos, yocto]
     environment: staging
-    env:
-      NEXIGON_HUB_URL: ${{ vars.NEXIGON_HUB_URL }}
-      NEXIGON_TOKEN: ${{ secrets.NEXIGON_TOKEN }}
-      NEXIGON_OTA_REPOSITORY: ${{ vars.NEXIGON_OTA_REPOSITORY }}
-      NEXIGON_OTA_PACKAGE: ${{ vars.NEXIGON_OTA_PACKAGE }}
     strategy:
       matrix:
         config:

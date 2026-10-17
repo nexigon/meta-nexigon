@@ -39,7 +39,7 @@ description = "Run an arbitrary kas-container command."
 run = '''
 mkdir -p "$KAS_WORK_DIR" "$KAS_BUILD_DIR" "$KAS_TMP_DIR"
 chmod 1777 "$KAS_TMP_DIR"
-kas-container --runtime-args "-e IMAGE_VERSION -e NEXIGON_HUB_URL -e NEXIGON_TOKEN -e NEXIGON_OTA_REPOSITORY -e NEXIGON_OTA_PACKAGE -e NEXIGON_OTA_TAG -e RAUC_KEYS_DIR -v $KAS_TMP_DIR:/tmp:rw" "$@"
+kas-container --runtime-args "-e IMAGE_VERSION -e NEXIGON_OTA_REPOSITORY -e NEXIGON_OTA_PACKAGE -e NEXIGON_OTA_TAG -e RAUC_KEYS_DIR -v $KAS_TMP_DIR:/tmp:rw" "$@"
 '''
 
 [tasks.build]
@@ -47,7 +47,7 @@ description = "Build a Yocto image with kas-container."
 run = '''
 mkdir -p "$KAS_WORK_DIR" "$KAS_BUILD_DIR" "$KAS_TMP_DIR"
 chmod 1777 "$KAS_TMP_DIR"
-kas-container --runtime-args "-e IMAGE_VERSION -e NEXIGON_HUB_URL -e NEXIGON_TOKEN -e NEXIGON_OTA_REPOSITORY -e NEXIGON_OTA_PACKAGE -e NEXIGON_OTA_TAG -e RAUC_KEYS_DIR -v $KAS_TMP_DIR:/tmp:rw" build "$@"
+kas-container --runtime-args "-e IMAGE_VERSION -e NEXIGON_OTA_REPOSITORY -e NEXIGON_OTA_PACKAGE -e NEXIGON_OTA_TAG -e RAUC_KEYS_DIR -v $KAS_TMP_DIR:/tmp:rw" build "$@"
 '''
 
 # ---- release scripts ------------------------------------------------------
@@ -83,6 +83,17 @@ exec "${nix_prefix[@]}" {{ vars.uv_run }} rugix-testkit run --arch x86_64 --ssh-
 [tasks."ssh-qemu"]
 description = "SSH into a running QEMU VM."
 run = "ssh {{ vars.ssh_opts }} -p 2222 root@localhost"
+
+[tasks."pair-qemu"]
+description = "Pair a running QEMU VM with a project on Nexigon Hub."
+usage = '''
+arg "<pairing>" help="Hub domain and pairing key, such as eu.nexigon.cloud,<pairing key>"
+'''
+# The VM only forwards SSH, so an SSH tunnel reaches the provisioning endpoint.
+run = '''
+ssh {{ vars.ssh_opts }} -p 2222 -f -o ExitOnForwardFailure=yes -L 6947:127.0.0.1:6947 root@localhost sleep 10
+curl --fail-with-body --data "$usage_pairing" http://127.0.0.1:6947/pair
+'''
 
 [tasks."scp-qemu"]
 description = "Copy a file into a running QEMU VM."
