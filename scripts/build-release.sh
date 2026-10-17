@@ -23,6 +23,4 @@ fi
 
 export IMAGE_VERSION="$VERSION"
 
-kas-container \
-    --runtime-args "-e IMAGE_VERSION -e NEXIGON_HUB_URL -e NEXIGON_TOKEN -e NEXIGON_OTA_REPOSITORY -e NEXIGON_OTA_PACKAGE -e NEXIGON_OTA_TAG -e RAUC_KEYS_DIR" \
-    build "$@"
+mise run build "$@"
