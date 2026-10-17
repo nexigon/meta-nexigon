@@ -13,8 +13,9 @@ local_conf_header:
     IMAGE_ID = "example-qemu-x86_64-rugix"
     # Filesystem types including the Rugix update bundle.
     IMAGE_FSTYPES = "tar.bz2 wic wic.xz wic.bmap rugixb rugixb.hash"
-    # Override the A/B system partition size (default: 4GiB).
-    # RUGIX_SYSTEM_SIZE = "4GiB"
+    # Size of each A/B system partition. On first boot, Rugix adds the second
+    # one and a data partition that fills the rest of the disk.
+    RUGIX_SYSTEM_SIZE = "2560MiB"
     # Build OVMF firmware for QEMU pflash.
     EXTRA_IMAGEDEPENDS += "ovmf"
 
