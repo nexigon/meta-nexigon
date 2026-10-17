@@ -2,8 +2,15 @@ name: CI Pipeline
 
 on:
   push:
+    branches: [main]
   pull_request:
     branches: [main]
+
+# The builds share one runner. A new commit cancels the previous build of a pull
+# request, while every build of main runs to publish its images.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   KAS_CONTAINER_ENGINE: podman
