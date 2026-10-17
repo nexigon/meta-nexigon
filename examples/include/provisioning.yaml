@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/siemens/kas/refs/heads/master/kas/schema-kas.json
+#
+# Pair devices through provisioning instead of built-in credentials. Add this
+# file to an example, for example:
+#
+#   mise run build examples/qemu-x86_64-rauc.yaml:examples/include/provisioning.yaml
+
+header:
+  version: 14
+
+local_conf_header:
+  provisioning: |
+    NEXIGON_PROVISIONING = "1"
+    NEXIGON_HUB_URL = ""
+    NEXIGON_TOKEN = ""

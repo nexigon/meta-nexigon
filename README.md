@@ -52,7 +52,7 @@ For the NXP FRDM-IMX91 board, `examples/frdm-imx91-rauc.yaml` builds an image th
 Nexigon Agent connects to Nexigon Hub with static credentials or with credentials obtained through provisioning:
 
 - **Static credentials.** Set `NEXIGON_HUB_URL` to the URL of Nexigon Hub and `NEXIGON_TOKEN` to a deployment token. Every device built from the image connects on its first boot.
-- **Provisioning.** Set `NEXIGON_PROVISIONING = "1"` and leave `NEXIGON_HUB_URL` and `NEXIGON_TOKEN` empty. Until it is paired, the agent accepts a one-time provisioning token on port 6947 and then saves the credentials that it receives. See [Device Provisioning](https://docs.nexigon.dev/guides/provisioning/). To configure the listener, for example its port, leave `NEXIGON_PROVISIONING` at `"0"` and add a `[provisioning]` table to `NEXIGON_AGENT_EXTRA_CONF` instead.
+- **Provisioning.** Set `NEXIGON_PROVISIONING = "1"` and leave `NEXIGON_HUB_URL` and `NEXIGON_TOKEN` empty. Until it is paired, the agent accepts a one-time provisioning token on port 6947 and then saves the credentials that it receives. To build an example this way, add `examples/include/provisioning.yaml`, for example `mise run build examples/qemu-x86_64-rauc.yaml:examples/include/provisioning.yaml`. See [Device Provisioning](https://docs.nexigon.dev/guides/provisioning/). To configure the listener, for example its port, leave `NEXIGON_PROVISIONING` at `"0"` and add a `[provisioning]` table to `NEXIGON_AGENT_EXTRA_CONF` instead.
 
 With neither, the agent uses credentials saved by an earlier provisioning and fails to start if there are none. A production image installed by an update after provisioning works this way.
 

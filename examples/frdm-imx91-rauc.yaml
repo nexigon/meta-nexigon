@@ -10,6 +10,7 @@ header:
   version: 14
   includes:
     - examples/include/rauc.yaml
+    - examples/include/provisioning.yaml
 
 local_conf_header:
   nxp-bsp: |
@@ -27,11 +28,6 @@ local_conf_header:
     # Reset the board with the hardware watchdog if the system hangs, so that
     # a broken update falls back to the previous slot.
     WATCHDOG_RUNTIME_SEC:pn-systemd = "30"
-  provisioning: |
-    # Pair with a provisioning token instead of built-in credentials.
-    NEXIGON_PROVISIONING = "1"
-    NEXIGON_HUB_URL = ""
-    NEXIGON_TOKEN = ""
 
 machine: imx91-11x11-lpddr4-frdm
 distro: poky
