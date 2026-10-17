@@ -14,8 +14,8 @@ DL_DIR = "{{ get_env(name='DL_DIR', default=config_root ~ '/cache/downloads') }}
 RAUC_KEYS_DIR = "/repo/rauc-keys"
 
 [vars]
-uv_run = "uv run --with 'rugix-testkit @ git+https://github.com/rugix/rugix-testkit.git' --with 'nexigon-hub-sdk @ git+https://github.com/nexigon/nexigon.git#subdirectory=sdks/python' --with pytest --with pytest-timeout"
-uv_dev = "uv run --with ruff --with mypy --with pytest --with 'nexigon-hub-sdk @ git+https://github.com/nexigon/nexigon.git#subdirectory=sdks/python' --with 'rugix-testkit @ git+https://github.com/rugix/rugix-testkit.git'"
+uv_run = "uv run --with 'rugix-testkit @ git+https://github.com/rugix/rugix-testkit.git' --with 'nexigon-hub-sdk @ git+https://github.com/nexigon/nexigon-sdk-python.git' --with pytest --with pytest-timeout"
+uv_dev = "uv run --with ruff --with mypy --with pytest --with 'nexigon-hub-sdk @ git+https://github.com/nexigon/nexigon-sdk-python.git' --with 'rugix-testkit @ git+https://github.com/rugix/rugix-testkit.git'"
 deploy_dir = "{{ get_env(name='KAS_BUILD_DIR', default=config_root ~ '/build') }}/tmp/deploy/images"
 ssh_opts = "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 rauc_keys_dir = "{{ config_root }}/rauc-keys"
