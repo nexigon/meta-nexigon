@@ -1,6 +1,7 @@
 [tools]
 "pipx:kas" = "latest"
 "uv" = "latest"
+"jq" = "latest"
 
 [env]
 _.file = ".env"

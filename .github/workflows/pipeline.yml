@@ -46,6 +46,24 @@ jobs:
       - name: Build
         run: mise run build ${{ matrix.config }}
 
-      - name: Remove RAUC keys
+      # Builds of main publish the QEMU images to the staging instance of Nexigon
+      # Hub, as package yocto-<example> with a locked build tag and the floating
+      # tag latest-build-main.
+      - name: Publish to staging
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(matrix.config, 'qemu')
+        env:
+          NEXIGON_HUB_URL: ${{ vars.NEXIGON_HUB_URL }}
+          NEXIGON_TOKEN: ${{ secrets.NEXIGON_STAGING_TOKEN }}
+          NEXIGON_OTA_REPOSITORY: ${{ vars.NEXIGON_STAGING_REPOSITORY }}
+          CONFIG: ${{ matrix.config }}
+        run: |
+          curl -fsSL https://install.nexigon.dev/download-cli.sh | USE_MUSL=true sh
+          (umask 077 && printf 'hub-url = "%s"\ntoken = "%s"\n' "$NEXIGON_HUB_URL" "$NEXIGON_TOKEN" > .nexigon-cli.toml)
+          export NEXIGON_CLI=./nexigon-cli
+          export NEXIGON_OTA_PACKAGE="yocto-$(basename "$CONFIG" .yaml)"
+          BUILD_TAG="$IMAGE_VERSION" FLOATING_TAG=latest-build-main mise run prepare-release
+          mise run upload-release qemux86-64
+
+      - name: Remove credentials and RAUC keys
         if: always()
-        run: rm -rf rauc-keys
+        run: rm -rf rauc-keys .nexigon-cli.toml .release.env
