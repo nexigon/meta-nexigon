@@ -38,4 +38,4 @@ jobs:
         run: mise run generate-rauc-keys
 
       - name: Build
-        run: mise run build ${{ matrix.config }}
+        run: mise run build ${{ matrix.config }}:.github/kas/ci.yaml
