@@ -4,9 +4,6 @@ header:
   version: 14
 
 env:
-  NEXIGON_HUB_URL: ""
-  NEXIGON_TOKEN: ""
-
   NEXIGON_OTA_REPOSITORY: ""
   NEXIGON_OTA_PACKAGE: ""
   NEXIGON_OTA_TAG: "stable"
@@ -19,10 +16,12 @@ local_conf_header:
     # Basic system configuration.
     PACKAGE_CLASSES = "package_deb"
     IMAGE_FEATURES:append = " package-management"
-    VOLATILE_LOG_DIR = "no"
     IMAGE_INSTALL:append = " ca-certificates"
-    EXTRA_IMAGE_FEATURES:append = " debug-tweaks ssh-server-dropbear"
-    INIT_MANAGER="systemd"
+    # Development access: root login without a password.
+    EXTRA_IMAGE_FEATURES:append = " allow-empty-password empty-root-password allow-root-login post-install-logging ssh-server-dropbear"
+    INIT_MANAGER = "systemd"
+    # Keep logs across reboots.
+    FILESYSTEM_PERMS_TABLES:remove = "files/fs-perms-volatile-log.txt"
 
     # Add `/etc/buildinfo` file with information about the build.
     INHERIT += "image-buildinfo"
@@ -36,9 +35,40 @@ local_conf_header:
     IMAGE_INSTALL:append = " networkmanager"
     PACKAGECONFIG:append:pn-systemd = " networkd resolved"
 
-    # Nexigon-specific configuration.
+    # Nexigon-specific configuration. Devices pair through provisioning, so
+    # that images contain no credentials.
+    NEXIGON_PROVISIONING = "1"
     NEXIGON_COMMANDS_ENABLED = "1"
     NEXIGON_TERMINAL_ENABLED = "1"
     NEXIGON_TERMINAL_USER = "root"
     OS_RELEASE_FIELDS:append = " BUILD_ID IMAGE_ID IMAGE_VERSION"
     IMAGE_INSTALL:append = " nexigon-agent nexigon-agent-service nexigon-agent-conf nexigon-power nexigon-systemd"
+
+repos:
+  bitbake:
+    url: https://git.openembedded.org/bitbake
+    branch: "2.18"
+    layers:
+      .: disabled
+
+  openembedded-core:
+    url: https://git.openembedded.org/openembedded-core
+    branch: wrynose
+    layers:
+      meta:
+
+  meta-yocto:
+    url: https://git.yoctoproject.org/meta-yocto
+    branch: wrynose
+    layers:
+      meta-poky:
+
+  meta-openembedded:
+    url: https://github.com/openembedded/meta-openembedded.git
+    branch: wrynose
+    layers:
+      meta-oe:
+      meta-python:
+      meta-networking:
+      meta-multimedia:
+      meta-filesystems:

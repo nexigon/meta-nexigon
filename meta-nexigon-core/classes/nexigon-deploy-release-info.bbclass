@@ -8,4 +8,4 @@ nexigon_deploy_release_info() {
     fi
 }
 
-IMAGE_POSTPROCESS_COMMAND += "nexigon_deploy_release_info;"
+IMAGE_POSTPROCESS_COMMAND += "nexigon_deploy_release_info"

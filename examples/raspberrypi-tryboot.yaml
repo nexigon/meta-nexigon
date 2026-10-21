@@ -27,37 +27,14 @@ distro: poky
 target:
   - core-image-minimal
 
-defaults:
-  repos:
-    branch: scarthgap
-
 repos:
-  poky:
-    url: https://github.com/yoctoproject/poky.git
-    layers:
-      meta:
-      meta-poky:
-      meta-yocto-bsp:
-
   meta-raspberrypi:
-    url: "https://github.com/agherzan/meta-raspberrypi.git"
-
-  meta-openembedded:
-    url: "https://github.com/openembedded/meta-openembedded.git"
-    layers:
-      meta-oe:
-      meta-python:
-      meta-networking:
-      meta-multimedia:
-      meta-filesystems:
-
-  meta-lts-mixins-rust:
-    url: "https://git.yoctoproject.org/meta-lts-mixins"
-    branch: scarthgap/rust
+    url: https://github.com/agherzan/meta-raspberrypi.git
+    branch: wrynose
 
   meta-rugix:
-    url: "https://github.com/silitics/meta-rugix.git"
-    branch: main
+    url: https://github.com/rugix/meta-rugix.git
+    branch: wrynose
     layers:
       meta-rugix-core:
       meta-rugix-rpi-tryboot:

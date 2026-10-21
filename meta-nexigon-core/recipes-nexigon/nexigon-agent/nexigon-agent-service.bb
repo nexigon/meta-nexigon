@@ -4,6 +4,7 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/Apache-2.0;md5=89aea4e17d99a7ca
                     file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
 SRC_URI = "file://nexigon-agent.service"
+S = "${UNPACKDIR}"
 
 RDEPENDS:${PN} = "nexigon-agent"
 
@@ -13,5 +14,5 @@ SYSTEMD_SERVICE:${PN} = "nexigon-agent.service"
 
 do_install() {
     install -d ${D}${systemd_system_unitdir}
-    install -m 0644 ${WORKDIR}/nexigon-agent.service ${D}${systemd_system_unitdir}/nexigon-agent.service
+    install -m 0644 ${UNPACKDIR}/nexigon-agent.service ${D}${systemd_system_unitdir}/nexigon-agent.service
 }

@@ -15,14 +15,15 @@ SRC_URI = " \
     file://nexigon-rugix-watchdog.service \
     file://nexigon-rugix-watchdog.timer \
 "
+S = "${UNPACKDIR}"
 
 do_install() {
     install -d ${D}${libexecdir}/nexigon
-    install -m 0755 ${WORKDIR}/nexigon-rugix-watchdog ${D}${libexecdir}/nexigon/
+    install -m 0755 ${UNPACKDIR}/nexigon-rugix-watchdog ${D}${libexecdir}/nexigon/
 
     install -d ${D}${systemd_system_unitdir}
-    install -m 0644 ${WORKDIR}/nexigon-rugix-watchdog.service ${D}${systemd_system_unitdir}/
-    install -m 0644 ${WORKDIR}/nexigon-rugix-watchdog.timer ${D}${systemd_system_unitdir}/
+    install -m 0644 ${UNPACKDIR}/nexigon-rugix-watchdog.service ${D}${systemd_system_unitdir}/
+    install -m 0644 ${UNPACKDIR}/nexigon-rugix-watchdog.timer ${D}${systemd_system_unitdir}/
     sed -i "s|@@TIMEOUT@@|${NEXIGON_OTA_RUGIX_WATCHDOG_TIMEOUT}|g" \
         ${D}${systemd_system_unitdir}/nexigon-rugix-watchdog.timer
 }
