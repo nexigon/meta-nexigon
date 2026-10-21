@@ -51,7 +51,7 @@ jobs:
           mise run generate-rauc-keys
 
       - name: Build
-        run: mise run build ${{ matrix.config }}
+        run: mise run build ${{ matrix.config }}:.github/kas/ci.yaml
 
       # Builds of main publish the QEMU images to the staging instance of Nexigon
       # Hub, as package yocto-<example> with a locked build tag and the floating

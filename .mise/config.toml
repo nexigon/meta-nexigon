@@ -42,7 +42,7 @@ description = "Run an arbitrary kas-container command."
 run = '''
 mkdir -p "$KAS_WORK_DIR" "$KAS_BUILD_DIR" "$KAS_TMP_DIR"
 chmod 1777 "$KAS_TMP_DIR"
-kas-container --runtime-args "-e IMAGE_VERSION -e NEXIGON_OTA_REPOSITORY -e NEXIGON_OTA_PACKAGE -e NEXIGON_OTA_TAG -e RAUC_KEYS_DIR -v $KAS_TMP_DIR:/tmp:rw" "$@"
+kas-container --runtime-args "-e IMAGE_VERSION -e NEXIGON_OTA_REPOSITORY -e NEXIGON_OTA_PACKAGE -e NEXIGON_OTA_TAG -e RAUC_KEYS_DIR -e SI_RUNNERS_PREMIRRORS -v $KAS_TMP_DIR:/tmp:rw" "$@"
 '''
 
 [tasks.build]
@@ -50,7 +50,7 @@ description = "Build a Yocto image with kas-container."
 run = '''
 mkdir -p "$KAS_WORK_DIR" "$KAS_BUILD_DIR" "$KAS_TMP_DIR"
 chmod 1777 "$KAS_TMP_DIR"
-kas-container --runtime-args "-e IMAGE_VERSION -e NEXIGON_OTA_REPOSITORY -e NEXIGON_OTA_PACKAGE -e NEXIGON_OTA_TAG -e RAUC_KEYS_DIR -v $KAS_TMP_DIR:/tmp:rw" build "$@"
+kas-container --runtime-args "-e IMAGE_VERSION -e NEXIGON_OTA_REPOSITORY -e NEXIGON_OTA_PACKAGE -e NEXIGON_OTA_TAG -e RAUC_KEYS_DIR -e SI_RUNNERS_PREMIRRORS -v $KAS_TMP_DIR:/tmp:rw" build "$@"
 '''
 
 # ---- release scripts ------------------------------------------------------
