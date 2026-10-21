@@ -1,0 +1,13 @@
+# Partitioning scheme for RAUC A/B updates on QEMU x86-64.
+# Based on meta-rauc-community's layout with 2.5 GiB rootfs partitions and
+# 6 GiB of data, about 11.5 GiB in total. The partition numbers must stay the
+# same, because the RAUC configuration of meta-rauc-qemux86 refers to them.
+
+bootloader --ptable gpt
+part --fixed-size 50M --source rawcopy --sourceparams="file=efi-boot.vfat" --fstype=vfat --ondisk sda --label boot --active --align 4096
+part --fixed-size 50M --ondisk sda --align 4096 --no-table
+part --fixed-size 10M --source rawcopy --sourceparams="file=grubenv.vfat" --fstype=vfat --ondisk sda --label grubenv --align 1024
+part /rescue --source rootfs --ondisk sda --fstype=ext4 --label rescue --align 1024
+part / --source rootfs --ondisk sda --fstype=ext4 --label root_a --fixed-size=2560M --align 4096
+part / --source empty --ondisk sda --fstype=ext4 --label root_b --fixed-size=2560M --align 4096
+part /data --fixed-size 6G --ondisk sda --fstype=ext4 --label data --align 4096

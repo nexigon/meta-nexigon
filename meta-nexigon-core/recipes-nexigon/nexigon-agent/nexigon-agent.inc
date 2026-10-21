@@ -4,8 +4,6 @@ LICENSE = "Apache-2.0 & MIT"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/Apache-2.0;md5=89aea4e17d99a7cacdbeed46a0096b10 \
                     file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
-S = "${WORKDIR}/git"
-
 inherit cargo
 
 do_compile[network] = "1"
@@ -19,6 +17,10 @@ CARGO_BUILD_FLAGS:remove = "--frozen"
 
 # Remap build paths in debug symbols to avoid QA warnings about TMPDIR references.
 RUSTFLAGS:append = " --remap-path-prefix=${TMPDIR}=/usr/src/debug/${PN}/${PV}"
+# Dependencies such as ring compile C code inside the Cargo home, which the
+# default prefix maps of the C compiler do not cover. The rust-common class
+# clears DEBUG_PREFIX_MAP_EXTRA, so append to DEBUG_PREFIX_MAP instead.
+DEBUG_PREFIX_MAP:append = " -ffile-prefix-map=${CARGO_HOME}=/usr/src/debug/${PN}/${PV}/cargo_home"
 
 # Yocto has its own stripping mechanism, so it raises an error if binaries produced by `cargo build` are already stripped.
 # To prevent this, override `profile.release.strip` in Cargo.toml to "none".

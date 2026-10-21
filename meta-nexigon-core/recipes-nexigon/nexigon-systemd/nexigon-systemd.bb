@@ -12,15 +12,16 @@ SRC_URI = " \
     file://nexigon-systemd-restart \
     file://nexigon-systemd-list-units \
 "
+S = "${UNPACKDIR}"
 
 do_install() {
     install -d ${D}${sysconfdir}/nexigon/agent/commands
-    install -m 0644 ${WORKDIR}/nexigon.systemd.status.toml ${D}${sysconfdir}/nexigon/agent/commands/
-    install -m 0644 ${WORKDIR}/nexigon.systemd.restart.toml ${D}${sysconfdir}/nexigon/agent/commands/
-    install -m 0644 ${WORKDIR}/nexigon.systemd.list-units.toml ${D}${sysconfdir}/nexigon/agent/commands/
+    install -m 0644 ${UNPACKDIR}/nexigon.systemd.status.toml ${D}${sysconfdir}/nexigon/agent/commands/
+    install -m 0644 ${UNPACKDIR}/nexigon.systemd.restart.toml ${D}${sysconfdir}/nexigon/agent/commands/
+    install -m 0644 ${UNPACKDIR}/nexigon.systemd.list-units.toml ${D}${sysconfdir}/nexigon/agent/commands/
 
     install -d ${D}${libexecdir}/nexigon
-    install -m 0755 ${WORKDIR}/nexigon-systemd-status ${D}${libexecdir}/nexigon/
-    install -m 0755 ${WORKDIR}/nexigon-systemd-restart ${D}${libexecdir}/nexigon/
-    install -m 0755 ${WORKDIR}/nexigon-systemd-list-units ${D}${libexecdir}/nexigon/
+    install -m 0755 ${UNPACKDIR}/nexigon-systemd-status ${D}${libexecdir}/nexigon/
+    install -m 0755 ${UNPACKDIR}/nexigon-systemd-restart ${D}${libexecdir}/nexigon/
+    install -m 0755 ${UNPACKDIR}/nexigon-systemd-list-units ${D}${libexecdir}/nexigon/
 }
