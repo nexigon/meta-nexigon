@@ -34,7 +34,7 @@ repos:
 
   meta-rugix:
     url: https://github.com/rugix/meta-rugix.git
-    branch: wrynose
+    commit: a1b83978c774fab61f5b56b63f4af09773bae07c
     layers:
       meta-rugix-core:
       meta-rugix-rpi-tryboot:
