@@ -111,7 +111,7 @@ See the example Kas configs under `examples/` for working setups. The key variab
 | `NEXIGON_AGENT_SSL_DIR`      | `nexigon-agent-conf` | Persistent SSL cert/key directory for A/B systems. |
 | `NEXIGON_AGENT_DATA_DIR`     | `nexigon-agent-conf` | Data directory of the agent, including saved credentials (default: `/var/lib/nexigon/agent`). |
 | `NEXIGON_SYSTEM_UPDATES`     | `nexigon-agent-conf` | Update engine of the agent: `"rugix"`, `"rauc"`, or `""` for none. The OTA layers set it. |
-| `NEXIGON_OTA_REPOSITORY`     | `nexigon-agent-conf` | Repository on Nexigon Hub.                         |
+| `NEXIGON_OTA_REPOSITORY`     | `nexigon-agent-conf` | Path name or ID of the repository on Nexigon Hub.  |
 | `NEXIGON_OTA_PACKAGE`        | `nexigon-agent-conf` | Package within the repository.                     |
 | `NEXIGON_OTA_TAG`            | `nexigon-agent-conf` | Version tag to track (default: `"stable"`).        |
 | `NEXIGON_OTA_INTERVAL`       | `nexigon-agent-conf` | Update check interval, such as `"1h 30min"` (default: `"4h"`). |
