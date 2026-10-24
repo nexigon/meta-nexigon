@@ -34,7 +34,18 @@ mise run generate-rauc-keys
 mise run build examples/qemu-x86_64-rauc.yaml
 ```
 
-Boot it in QEMU with `mise run run-qemu-x86_64` and SSH in with `mise run ssh-qemu`.
+The Rugix examples for QEMU and Raspberry Pi also enable Rugix Apps with Docker
+Compose through the `apps-docker-compose` feature in `RUGIX_FEATURES`. The
+examples pin a `meta-rugix` revision that provides this integration. Their shared
+KAS configuration includes the Apps fragment from `meta-rugix`, which adds
+`meta-virtualization`, Docker Engine, the Compose plugin, Apps boot services, and
+persistent Docker storage. Compose services that should start after reboot need
+a restart policy such as `restart: unless-stopped`. The
+`nexigon.rugix-apps.*` device commands manage app deployments and lifecycle
+through Nexigon.
+
+Boot the QEMU image with `mise run run-qemu-x86_64` and SSH in with
+`mise run ssh-qemu`.
 
 The example images contain no credentials. Instead, a device pairs with a project on Nexigon Hub after its first boot. Create a pairing key in the project and send it to the device together with the domain of your Hub. For the QEMU VM, run:
 

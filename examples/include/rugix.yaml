@@ -4,6 +4,8 @@ header:
   version: 14
   includes:
     - examples/include/base.yaml
+    - repo: meta-rugix
+      file: examples/include/apps-docker-compose.yaml
 
 local_conf_header:
   nexigon-rugix-config: |
