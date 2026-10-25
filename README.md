@@ -17,6 +17,8 @@ On the `main` branch, the Core Layer builds Nexigon Agent from the `main` branch
 
 Both OTA layers enable the system update integration of the agent for their update engine as soon as the layer is included. Set `NEXIGON_SYSTEM_UPDATES = ""` to include a layer without enabling updates. The agent periodically resolves a version tag on Nexigon Hub. If the tagged version doesn't match what's running, it downloads and installs the bundle, reboots, and reports the outcome in the `dev.nexigon.ota.status` device property. The `dev.nexigon.ota.config` device property can hold updates, restrict them to maintenance windows, and limit retries. See [OTA Updates](https://docs.nexigon.dev/reference/ota-updates/) for the full update model.
 
+With `NEXIGON_APPS = "rugix"`, the agent also manages the apps listed in the `dev.nexigon.apps.config` device property with Rugix Apps and reports their status in `dev.nexigon.apps.status`. This requires Rugix Ctrl 1.4 or later, which no release includes yet, so the Rugix examples build Rugix Ctrl from Git with `PREFERRED_VERSION_rugix-ctrl = "0+git"`. See [App Updates](https://docs.nexigon.dev/next/reference/app-updates/) for the app update model.
+
 Using a different update engine? Nexigon Hub provides [composable primitives](https://nexigon.cloud/blog/2026-02-19-primitives-first-architecture) (repositories, versioned packages, device properties, events) that you can integrate with any update mechanism.
 
 ## Getting Started
@@ -117,6 +119,8 @@ See the example Kas configs under `examples/` for working setups. The key variab
 | `NEXIGON_OTA_INTERVAL`       | `nexigon-agent-conf` | Update check interval, such as `"1h 30min"` (default: `"4h"`). |
 | `NEXIGON_OTA_RANDOMIZED_DELAY` | `nexigon-agent-conf` | Maximum random delay of scheduled update checks, which keeps devices from reaching Nexigon Hub at once (default: `"5min"`). |
 | `NEXIGON_OTA_RUGIX_USE_BUNDLE_HASH` | `nexigon-agent-conf` | Verify Rugix bundles with the hash from the asset metadata when present (default: `"0"`). |
+| `NEXIGON_APPS`               | `nexigon-agent-conf` | App management of the agent: `"rugix"` for Rugix Apps, which requires Rugix Ctrl 1.4 or later, or `""` for none (default). |
+| `NEXIGON_APPS_RUGIX_USE_BUNDLE_HASH` | `nexigon-agent-conf` | Verify Rugix app bundles with the hash from the asset metadata when present (default: `"0"`). |
 
 Without `NEXIGON_OTA_REPOSITORY` and `NEXIGON_OTA_PACKAGE`, devices do not update until the `dev.nexigon.ota.config` device property supplies a path. The `nexigon.ota.check` command, which triggers an immediate update check, requires `NEXIGON_COMMANDS_ENABLED = "1"`.
 
