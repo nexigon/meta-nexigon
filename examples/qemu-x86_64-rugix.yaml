@@ -27,7 +27,7 @@ target:
 repos:
   meta-rugix:
     url: https://github.com/rugix/meta-rugix.git
-    commit: a1b83978c774fab61f5b56b63f4af09773bae07c
+    commit: 6235d8ccc92036d36d4e6d527c9b470b7574e8e7
     layers:
       meta-rugix-core:
       meta-rugix-qemu-x86_64-grub:

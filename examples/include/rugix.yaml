@@ -19,3 +19,8 @@ local_conf_header:
     NEXIGON_DEVICE_FINGERPRINT = "machine-id"
     # Install Rugix-specific Nexigon tooling.
     IMAGE_INSTALL:append = " nexigon-rugix-state-conf nexigon-rugix-ota nexigon-rugix-apps"
+    # Manage apps through `dev.nexigon.apps.config`, which needs the unreleased
+    # Rugix Ctrl 1.4, so build Rugix Ctrl from Git like the agent.
+    NEXIGON_APPS = "rugix"
+    NEXIGON_APPS_RUGIX_USE_BUNDLE_HASH = "1"
+    PREFERRED_VERSION_rugix-ctrl = "0+git"

@@ -56,6 +56,13 @@ NEXIGON_OTA_RANDOMIZED_DELAY ??= ""
 # Verify Rugix bundles with the hash from the asset metadata when present.
 NEXIGON_OTA_RUGIX_USE_BUNDLE_HASH ??= "0"
 
+# App management integration of the agent:
+#   ""       - no app management (default)
+#   "rugix"  - apps with Rugix Apps, which requires Rugix Ctrl 1.4 or later
+NEXIGON_APPS ??= ""
+# Verify Rugix app bundles with the hash from the asset metadata when present.
+NEXIGON_APPS_RUGIX_USE_BUNDLE_HASH ??= "0"
+
 python do_validate_config() {
     fp = d.getVar('NEXIGON_DEVICE_FINGERPRINT')
     if not fp:
@@ -73,6 +80,8 @@ python do_validate_config() {
     updates = d.getVar('NEXIGON_SYSTEM_UPDATES')
     if updates not in ('', 'rugix', 'rauc'):
         bb.fatal('NEXIGON_SYSTEM_UPDATES must be "", "rugix", or "rauc"')
+    if d.getVar('NEXIGON_APPS') not in ('', 'rugix'):
+        bb.fatal('NEXIGON_APPS must be "" or "rugix"')
     if bool(d.getVar('NEXIGON_OTA_REPOSITORY')) != bool(d.getVar('NEXIGON_OTA_PACKAGE')):
         bb.fatal('NEXIGON_OTA_REPOSITORY and NEXIGON_OTA_PACKAGE must be set together')
     if d.getVar('NEXIGON_OTA_REPOSITORY') and not d.getVar('NEXIGON_OTA_TAG'):
@@ -172,6 +181,14 @@ EOF
             echo "check-jitter-secs = ${NEXIGON_OTA_RANDOMIZED_DELAY_SECS}" >> ${D}${sysconfdir}/nexigon/agent.toml
         fi
         if [ "${NEXIGON_SYSTEM_UPDATES}" = "rugix" ] && [ "${NEXIGON_OTA_RUGIX_USE_BUNDLE_HASH}" = "1" ]; then
+            echo "use-bundle-hash = true" >> ${D}${sysconfdir}/nexigon/agent.toml
+        fi
+    fi
+
+    if [ -n "${NEXIGON_APPS}" ]; then
+        printf '\n[integrations.%s.apps]\nenabled = true\n' "${NEXIGON_APPS}" \
+            >> ${D}${sysconfdir}/nexigon/agent.toml
+        if [ "${NEXIGON_APPS_RUGIX_USE_BUNDLE_HASH}" = "1" ]; then
             echo "use-bundle-hash = true" >> ${D}${sysconfdir}/nexigon/agent.toml
         fi
     fi
