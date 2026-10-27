@@ -4,6 +4,9 @@
 # holds `PREMIRRORS` entries for a mirror of source downloads. Elsewhere, it is
 # empty. Builds also create mirror tarballs of Git repositories, which the runners
 # add to the mirror.
+#
+# CI builds also check the image SBOM for known vulnerabilities with
+# sbom-cve-check, which writes a VEX document next to the image.
 
 header:
   version: 14
@@ -15,3 +18,9 @@ local_conf_header:
   ci-premirrors: |
     PREMIRRORS:prepend = "${SI_RUNNERS_PREMIRRORS} "
     BB_GENERATE_MIRROR_TARBALLS = "1"
+  ci-sbom-cve-check: |
+    OE_FRAGMENTS += "core/yocto/sbom-cve-check"
+    # The CVE databases change with every build, so their mirror tarballs would
+    # only fill the mirror.
+    BB_GENERATE_MIRROR_TARBALLS:pn-sbom-cve-check-update-cvelist-native = "0"
+    BB_GENERATE_MIRROR_TARBALLS:pn-sbom-cve-check-update-nvd-native = "0"
