@@ -3,7 +3,8 @@ name: CI Pipeline
 on:
   push:
     branches: [main]
-    tags: ["v*"]
+    # Release tags are timestamps, such as 20261029100000.
+    tags: ["[0-9]+"]
   pull_request:
     branches: [main]
 
