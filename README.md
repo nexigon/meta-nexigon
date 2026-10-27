@@ -84,11 +84,11 @@ The `scripts/` directory provides a three-step release workflow:
 
 1. **`prepare-release.sh`** — Create a version in Nexigon Hub and pin it in `.release.env`.
 2. **`build-release.sh <kas-config>`** — Build the image with the pinned version baked in.
-3. **`upload-release.sh <machine>`** — Upload the image, update bundle, and SBOM to the hub.
+3. **`upload-release.sh <machine>`** — Upload the image, update bundle, SBOM, and VEX document to the hub.
 
 The upload script auto-detects Rugix (`.rugixb`) and RAUC (`.raucb`) bundles and uploads whichever is present. It also uploads the SPDX 3 SBOM that Yocto generates for the image and links it from the image and the bundle through the `relations.sbom` asset metadata.
 
-`collect-release.sh <machine> <dir>` gathers the same artifacts into a directory, together with the VEX document of [sbom-cve-check](https://github.com/bootlin/sbom-cve-check) if the build ran it. To run sbom-cve-check, add `OE_FRAGMENTS += "core/yocto/sbom-cve-check"` to `local.conf`. It downloads the CVE databases during the build.
+If the build ran [sbom-cve-check](https://github.com/bootlin/sbom-cve-check), the upload script also attaches its VEX document to the version. To run sbom-cve-check, add `OE_FRAGMENTS += "core/yocto/sbom-cve-check"` to `local.conf`. It downloads the CVE databases during the build. `collect-release.sh <machine> <dir>` gathers the same artifacts into a directory.
 
 CI builds run sbom-cve-check. Pushing a release tag, a timestamp such as `20261029100000`, publishes the images, update bundles, SBOMs, and VEX documents of the examples as a GitHub release.
 

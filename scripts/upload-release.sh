@@ -131,4 +131,11 @@ if [ -e "$RAUC_BUNDLE" ]; then
     upload_asset "$RAUC_BUNDLE" "$(artifact_metadata '{}')"
 fi
 
+# Keep the VEX document of sbom-cve-check with the version as evidence of its
+# vulnerability state at build time.
+VEX_FILE="$ARTIFACTS_DIR/$IMAGE_ID.vex.spdx.json"
+if [ -e "$VEX_FILE" ]; then
+    upload_asset "$VEX_FILE"
+fi
+
 echo "[INFO] upload complete"
