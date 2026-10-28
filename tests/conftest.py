@@ -146,6 +146,10 @@ def ports() -> tuple[int, int]:
 def vm(
     deploy_dir: Path, ports: tuple[int, int], request: pytest.FixtureRequest
 ) -> Generator[VMHandle]:
+    ovmf_dir = os.environ.get("OVMF_DIR")
+    if not ovmf_dir:
+        pytest.fail("OVMF_DIR is not set. Run tests with `mise run test`.")
+    firmware_dir = Path(ovmf_dir) / "FV"
     ssh_port, pairing_port = ports
     config = VMConfig(
         arch="x86_64",
@@ -162,8 +166,8 @@ def vm(
             ),
         ],
         pflash=[
-            Pflash(file=deploy_dir / "ovmf.code.qcow2", format="qcow2", readonly=True),
-            Pflash(file=deploy_dir / "ovmf.vars.qcow2", format="qcow2"),
+            Pflash(file=firmware_dir / "OVMF_CODE.fd", format="raw", readonly=True),
+            Pflash(file=firmware_dir / "OVMF_VARS.fd", format="raw"),
         ],
     )
     with VMHandle.start(config) as handle:
