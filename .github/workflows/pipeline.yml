@@ -8,8 +8,8 @@ on:
   pull_request:
     branches: [main]
 
-# The builds share one runner. A new commit cancels the previous build of a pull
-# request, while every build of main runs to publish its images.
+# New commits cancel earlier PR pipelines. Keep running main pipelines intact
+# while they publish their images.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -23,37 +23,57 @@ env:
   KAS_BUILD_DIR: ${{ github.workspace }}/build
 
 jobs:
+  prepare-build:
+    name: Prepare Build Metadata
+    runs-on: ubuntu-latest
+    outputs:
+      image-version: ${{ steps.metadata.outputs.image-version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Test release artifact handoff
+        run: python3 scripts/test-release-artifacts.py
+
+      - name: Set image version
+        id: metadata
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            version="$GITHUB_REF_NAME"
+          else
+            version="build-$(date -u +%Y%m%d%H%M%S)-${GITHUB_SHA:0:7}"
+          fi
+          echo "image-version=$version" >> "$GITHUB_OUTPUT"
+
   build:
     name: Build
     runs-on: [self-hosted, si-xlarge]
+    # Shared RAUC development signing keys are scoped to this environment.
     environment: staging
+    needs: prepare-build
+    env:
+      IMAGE_VERSION: ${{ needs.prepare-build.outputs.image-version }}
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - config: examples/qemu-x86_64-rauc.yaml
+          - example: qemu-x86_64-rauc
             machine: qemux86-64
-          - config: examples/qemu-x86_64-rugix.yaml
+          - example: qemu-x86_64-rugix
             machine: qemux86-64
-          - config: examples/raspberrypi-tryboot.yaml
+          - example: raspberrypi-tryboot
             machine: raspberrypi-armv8
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # Tag builds use the tag as their version.
-      - name: Set IMAGE_VERSION
-        run: |
-          if [ "$GITHUB_REF_TYPE" = tag ]; then
-            echo "IMAGE_VERSION=$GITHUB_REF_NAME" >> "$GITHUB_ENV"
-          else
-            echo "IMAGE_VERSION=build-$(date +%Y%m%d%H%M%S)-$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
-          fi
-
       # The secrets hold shared development keys, so that bundles of different
       # builds install on each other's images. Without them, for example on
       # forks, the build signs with throwaway keys.
       - name: Set up RAUC keys
-        if: contains(matrix.config, 'rauc')
+        if: contains(matrix.example, 'rauc')
         env:
           RAUC_DEV_CA_CERT: ${{ secrets.RAUC_DEV_CA_CERT }}
           RAUC_DEV_SIGNING_CERT: ${{ secrets.RAUC_DEV_SIGNING_CERT }}
@@ -65,49 +85,77 @@ jobs:
           mise run generate-rauc-keys
 
       - name: Build
-        run: mise run build ${{ matrix.config }}:.github/kas/ci.yaml
+        run: mise run build examples/${{ matrix.example }}.yaml:.github/kas/ci.yaml
 
-      # Builds of main and tags publish the QEMU images with their SBOMs to the
-      # staging instance of Nexigon Hub, as package yocto-<example> with a locked
-      # build tag. Builds of main also move the floating tag latest-build-main.
-      - name: Publish to staging
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref_type == 'tag') && contains(matrix.config, 'qemu')
+      - name: Collect build artifacts
         env:
-          NEXIGON_HUB_URL: ${{ vars.NEXIGON_HUB_URL }}
-          NEXIGON_TOKEN: ${{ secrets.NEXIGON_STAGING_TOKEN }}
-          NEXIGON_OTA_REPOSITORY: ${{ vars.NEXIGON_STAGING_REPOSITORY }}
-          CONFIG: ${{ matrix.config }}
           MACHINE: ${{ matrix.machine }}
         run: |
-          curl -fsSL https://install.nexigon.dev/download-cli.sh | USE_MUSL=true sh
-          (umask 077 && printf 'hub-url = "%s"\ntoken = "%s"\n' "$NEXIGON_HUB_URL" "$NEXIGON_TOKEN" > .nexigon-cli.toml)
-          export NEXIGON_CLI=./nexigon-cli
-          export NEXIGON_OTA_PACKAGE="yocto-$(basename "$CONFIG" .yaml)"
-          floating_tag=""
-          if [ "$GITHUB_REF_TYPE" = branch ]; then
-            floating_tag=latest-build-main
-          fi
-          BUILD_TAG="$IMAGE_VERSION" FLOATING_TAG="$floating_tag" mise run prepare-release
-          mise run upload-release "$MACHINE"
+          ./scripts/collect-release.sh "$MACHINE" dist
+          cp "build/tmp/deploy/images/$MACHINE/os-release" dist/os-release
 
-      # Tag builds collect the image, update bundle, SBOM, and VEX document of
-      # each example for the GitHub release.
-      - name: Collect release artifacts
-        if: github.ref_type == 'tag'
-        run: ./scripts/collect-release.sh ${{ matrix.machine }} dist
-
-      - name: Upload release artifacts
-        if: github.ref_type == 'tag'
+      - name: Upload build artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: release-${{ strategy.job-index }}
+          name: build-${{ matrix.example }}
           path: dist/
           if-no-files-found: error
           compression-level: 0
 
-      - name: Remove credentials and RAUC keys
+      - name: Remove RAUC keys
         if: always()
-        run: rm -rf rauc-keys .nexigon-cli.toml .release.env
+        run: rm -rf rauc-keys
+
+  publish-staging:
+    name: Publish to Nexigon Staging
+    runs-on: [self-hosted, si-small]
+    needs: [prepare-build, build]
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    environment: staging
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - example: qemu-x86_64-rauc
+            machine: qemux86-64
+          - example: qemu-x86_64-rugix
+            machine: qemux86-64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: build-${{ matrix.example }}
+          path: dist
+
+      - name: Install Nexigon CLI
+        run: curl -fsSL https://install.nexigon.dev/download-cli.sh | USE_MUSL=true sh
+
+      - name: Publish to staging
+        env:
+          NEXIGON_HUB_URL: ${{ vars.NEXIGON_HUB_URL }}
+          NEXIGON_TOKEN: ${{ secrets.NEXIGON_STAGING_TOKEN }}
+          NEXIGON_OTA_REPOSITORY: ${{ vars.NEXIGON_STAGING_REPOSITORY }}
+          NEXIGON_OTA_PACKAGE: yocto-${{ matrix.example }}
+          BUILD_TAG: ${{ needs.prepare-build.outputs.image-version }}
+          MACHINE: ${{ matrix.machine }}
+        run: |
+          (umask 077 && printf 'hub-url = "%s"\ntoken = "%s"\n' "$NEXIGON_HUB_URL" "$NEXIGON_TOKEN" > .nexigon-cli.toml)
+          export NEXIGON_CLI=./nexigon-cli
+          floating_tag=""
+          if [ "$GITHUB_REF" = refs/heads/main ]; then
+            floating_tag=latest-build-main
+          fi
+          FLOATING_TAG="$floating_tag" mise run prepare-release
+          mise run upload-release "$MACHINE" dist
+
+      - name: Remove credentials
+        if: always()
+        run: rm -f .nexigon-cli.toml .release.env
 
   release:
     name: Publish GitHub Release
@@ -120,7 +168,7 @@ jobs:
       - name: Download release artifacts
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: release-*
+          pattern: build-*
           path: dist
           merge-multiple: true
 
@@ -129,7 +177,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          files=(dist/*)
+          mapfile -d '' files < <(find dist -maxdepth 1 -type f ! -name os-release -print0)
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
           else
