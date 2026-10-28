@@ -12,8 +12,6 @@ local_conf_header:
   nexigon-rauc-config: |
     # Enable RAUC distro feature.
     DISTRO_FEATURES:append = " rauc"
-    # Install RAUC and Nexigon OTA tooling.
-    IMAGE_INSTALL:append = " rauc nexigon-rauc-ota"
     # Persist agent identity and saved credentials across A/B slot switches.
     NEXIGON_AGENT_SSL_DIR = "/data/nexigon/agent/ssl"
     NEXIGON_AGENT_DATA_DIR = "/data/nexigon/agent"
