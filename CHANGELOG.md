@@ -4,8 +4,8 @@
 
 - Publish QEMU images to staging in separate jobs after all image builds succeed.
   Builds share one image version and retain downloadable artifacts. Staging
-  publishing also runs for pull requests from this repository; only `main` moves
-  `latest-build-main`.
+  publishing also runs for pull requests from this repository, updating a
+  `pr<number>` tag. Only `main` moves `latest-build-main`.
 
 - Select the latest Nexigon Agent from `main` by default, using `PV = "0+git"`
   and an explicit version preference. Release 0.6.1 remains available through

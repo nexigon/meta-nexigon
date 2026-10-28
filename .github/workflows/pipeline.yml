@@ -143,11 +143,14 @@ jobs:
           NEXIGON_OTA_PACKAGE: yocto-${{ matrix.example }}
           BUILD_TAG: ${{ needs.prepare-build.outputs.image-version }}
           MACHINE: ${{ matrix.machine }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           (umask 077 && printf 'hub-url = "%s"\ntoken = "%s"\n' "$NEXIGON_HUB_URL" "$NEXIGON_TOKEN" > .nexigon-cli.toml)
           export NEXIGON_CLI=./nexigon-cli
           floating_tag=""
-          if [ "$GITHUB_REF" = refs/heads/main ]; then
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            floating_tag="pr$PR_NUMBER"
+          elif [ "$GITHUB_REF" = refs/heads/main ]; then
             floating_tag=latest-build-main
           fi
           FLOATING_TAG="$floating_tag" mise run prepare-release
