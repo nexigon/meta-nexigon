@@ -68,10 +68,16 @@ fi
 
 echo "[INFO] uploading artifacts for '$IMAGE_ID' (machine: $MACHINE) to version $VERSION_ID (tag: $BUILD_TAG)"
 
+# Next to the build, so that collecting links the artifacts instead of copying them.
+ARTIFACTS_DIR=$(mktemp -d build/release.XXXXXX)
+trap 'rm -rf "$ARTIFACTS_DIR"' EXIT
+"$(dirname "$0")/collect-release.sh" "$MACHINE" "$ARTIFACTS_DIR"
+
 upload_asset() {
     local file="$1"
-    local filename="$2"
-    local metadata="${3:-}"
+    local metadata="${2:-}"
+    local filename
+    filename=$(basename "$file")
 
     echo "[INFO] uploading '$filename'"
     local asset_info
@@ -87,55 +93,49 @@ upload_asset() {
     fi
 }
 
-# Upload the system image (try common compression formats).
-IMAGE_UPLOADED=false
-for pattern in "$DEPLOY_DIR"/*-"$MACHINE".rootfs.wic.xz \
-               "$DEPLOY_DIR"/*-"$MACHINE".rootfs.wic.bz2 \
-               "$DEPLOY_DIR"/*-"$MACHINE".rootfs.wic.gz \
-               "$DEPLOY_DIR"/*-"$MACHINE".rootfs.wic; do
-    for img_file in $pattern; do
-        if [ -e "$img_file" ] && [ -L "$img_file" -o ! "$img_file" != *-20* ]; then
-            ext="${img_file#*.rootfs.}"
-            upload_asset "$img_file" "$IMAGE_ID.img.$ext"
-            IMAGE_UPLOADED=true
-            break 2
-        fi
-    done
-done
-
-if [ "$IMAGE_UPLOADED" = false ]; then
-    echo "[WARN] no system image found in $DEPLOY_DIR"
+# Upload the SBOM first, so that the image and update bundles can link it.
+# Nexigon Hub indexes SBOMs linked through `relations.sbom`.
+SBOM_FILE="$ARTIFACTS_DIR/$IMAGE_ID.spdx.json"
+if [ -e "$SBOM_FILE" ]; then
+    upload_asset "$SBOM_FILE"
 fi
 
-# Upload the Rugix update bundle.
-RUGIX_UPLOADED=false
-for bundle_file in "$DEPLOY_DIR"/*-"$MACHINE".rootfs.rugixb; do
-    if [ -e "$bundle_file" ] && [ -L "$bundle_file" ]; then
-        hash_file="$bundle_file.hash"
-        if [ -e "$hash_file" ]; then
-            BUNDLE_HASH=$(cat "$hash_file")
-            bundle_metadata=$(jq -nc --arg h "$BUNDLE_HASH" '{rugix: {bundleHash: $h}}')
-            upload_asset "$bundle_file" "$IMAGE_ID.rugixb" "$bundle_metadata"
-        else
-            upload_asset "$bundle_file" "$IMAGE_ID.rugixb"
-        fi
-        RUGIX_UPLOADED=true
-        break
+# Print the metadata of an artifact: the given metadata with a link to the SBOM.
+artifact_metadata() {
+    local metadata="$1"
+    if [ -e "$SBOM_FILE" ]; then
+        jq -nc --argjson m "$metadata" --arg sbom "$(basename "$SBOM_FILE")" \
+            '$m + {relations: {sbom: [$sbom]}}'
+    elif [ "$metadata" != "{}" ]; then
+        echo "$metadata"
+    fi
+}
+
+for image_file in "$ARTIFACTS_DIR/$IMAGE_ID".img.*; do
+    if [ -e "$image_file" ]; then
+        upload_asset "$image_file" "$(artifact_metadata '{}')"
     fi
 done
 
-# Upload the RAUC update bundle.
-RAUC_UPLOADED=false
-for bundle_file in "$DEPLOY_DIR"/*-"$MACHINE".raucb; do
-    if [ -e "$bundle_file" ] && [ -L "$bundle_file" ]; then
-        upload_asset "$bundle_file" "$IMAGE_ID.raucb"
-        RAUC_UPLOADED=true
-        break
+RUGIX_BUNDLE="$ARTIFACTS_DIR/$IMAGE_ID.rugixb"
+if [ -e "$RUGIX_BUNDLE" ]; then
+    bundle_metadata="{}"
+    if [ -e "$RUGIX_BUNDLE.hash" ]; then
+        bundle_metadata=$(jq -nc --arg h "$(cat "$RUGIX_BUNDLE.hash")" '{rugix: {bundleHash: $h}}')
     fi
-done
+    upload_asset "$RUGIX_BUNDLE" "$(artifact_metadata "$bundle_metadata")"
+fi
 
-if [ "$RUGIX_UPLOADED" = false ] && [ "$RAUC_UPLOADED" = false ]; then
-    echo "[WARN] no update bundle found (neither .rugixb nor .raucb)"
+RAUC_BUNDLE="$ARTIFACTS_DIR/$IMAGE_ID.raucb"
+if [ -e "$RAUC_BUNDLE" ]; then
+    upload_asset "$RAUC_BUNDLE" "$(artifact_metadata '{}')"
+fi
+
+# Keep the VEX document of sbom-cve-check with the version as evidence of its
+# vulnerability state at build time.
+VEX_FILE="$ARTIFACTS_DIR/$IMAGE_ID.vex.spdx.json"
+if [ -e "$VEX_FILE" ]; then
+    upload_asset "$VEX_FILE"
 fi
 
 echo "[INFO] upload complete"
