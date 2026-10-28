@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Use repository secrets for RAUC development signing keys. Only publishing jobs
+  use the staging environment and create staging deployments.
+
 - Publish QEMU images to staging in separate jobs after all image builds succeed.
   Builds share one image version and retain downloadable artifacts. Published builds
   get an immutable `build-<timestamp>-<hash>` tag and a moving `latest-main` or
