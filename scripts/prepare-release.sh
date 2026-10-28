@@ -22,13 +22,13 @@ fi
 
 NEXIGON_CLI="${NEXIGON_CLI:-nexigon-cli}"
 
-TIMESTAMP=$(date +"%Y%m%d%H%M%S")
+TIMESTAMP=$(date -u +"%Y%m%d%H%M%S")
 GIT_COMMIT=$(git rev-parse --short HEAD)
 GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
 BUILD_TAG=${BUILD_TAG:-"build-${TIMESTAMP}-${GIT_COMMIT}"}
 # An empty FLOATING_TAG creates the version without a floating tag.
-FLOATING_TAG=${FLOATING_TAG-"latest-build-${GIT_BRANCH//\//-}"}
+FLOATING_TAG=${FLOATING_TAG-"latest-${GIT_BRANCH//\//-}"}
 
 # The release version is the build tag itself. It gets baked into the image
 # as IMAGE_VERSION and is used as a locked tag in the Nexigon repository.
@@ -44,7 +44,9 @@ if [ "$(echo "$BUILD_VERSION_INFO" | jq -r '.result')" == "Found" ]; then
     VERSION_ID=$(echo "$BUILD_VERSION_INFO" | jq -r '.versionId')
 else
     echo "[INFO] creating build version"
-    VERSION_METADATA=$(jq -nc --arg version "$VERSION" '{imageVersion: $version}')
+    VERSION_METADATA=$(jq -nc --arg version "$VERSION" \
+        --arg branch "${SOURCE_BRANCH:-$GIT_BRANCH}" \
+        '{imageVersion: $version, sourceBranch: $branch}')
     TAG_ARGS=(--tag "$BUILD_TAG,locked")
     if [ -n "$FLOATING_TAG" ]; then
         TAG_ARGS+=(--tag "$FLOATING_TAG,reassign")

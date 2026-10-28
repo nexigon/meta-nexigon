@@ -3,7 +3,10 @@
 # Upload build artifacts to Nexigon Hub for the version pinned by prepare-release.sh.
 #
 # Usage:
-#   ./scripts/upload-release.sh <machine>
+#   ./scripts/upload-release.sh <machine> [artifact-dir]
+#
+# An artifact directory contains collected release files and their os-release.
+# Without one, collect the artifacts from the local build.
 #
 # Examples:
 #   ./scripts/upload-release.sh qemux86-64
@@ -32,9 +35,9 @@ fi
 
 . .release.env
 
-if [ $# -eq 0 ]; then
-    echo "[ERROR] no machine specified"
-    echo "usage: $0 <machine>"
+if [ $# -lt 1 ] || [ $# -gt 2 ]; then
+    echo "[ERROR] expected a machine and optional artifact directory"
+    echo "usage: $0 <machine> [artifact-dir]"
     exit 1
 fi
 
@@ -42,7 +45,7 @@ MACHINE="$1"
 
 NEXIGON_CLI="${NEXIGON_CLI:-nexigon-cli}"
 
-DEPLOY_DIR="build/tmp/deploy/images/$MACHINE"
+DEPLOY_DIR="${2:-build/tmp/deploy/images/$MACHINE}"
 
 if [ ! -d "$DEPLOY_DIR" ]; then
     echo "[ERROR] deploy directory not found: $DEPLOY_DIR"
@@ -52,6 +55,10 @@ fi
 # Read IMAGE_ID from `os-release` and check version.
 IMAGE_ID="$MACHINE"
 OS_RELEASE_FILE="$DEPLOY_DIR/os-release"
+if [ $# -eq 2 ] && [ ! -f "$OS_RELEASE_FILE" ]; then
+    echo "[ERROR] os-release is missing from artifact directory: $DEPLOY_DIR"
+    exit 1
+fi
 if [ -e "$OS_RELEASE_FILE" ]; then
     FILE_IMAGE_ID=$(grep "^IMAGE_ID=" "$OS_RELEASE_FILE" | cut -d= -f2 | tr -d '"')
     if [ -n "$FILE_IMAGE_ID" ]; then
@@ -68,10 +75,13 @@ fi
 
 echo "[INFO] uploading artifacts for '$IMAGE_ID' (machine: $MACHINE) to version $VERSION_ID (tag: $BUILD_TAG)"
 
-# Next to the build, so that collecting links the artifacts instead of copying them.
-ARTIFACTS_DIR=$(mktemp -d build/release.XXXXXX)
-trap 'rm -rf "$ARTIFACTS_DIR"' EXIT
-"$(dirname "$0")/collect-release.sh" "$MACHINE" "$ARTIFACTS_DIR"
+ARTIFACTS_DIR="${2:-}"
+if [ -z "$ARTIFACTS_DIR" ]; then
+    # Next to the build, so that collecting links the artifacts instead of copying them.
+    ARTIFACTS_DIR=$(mktemp -d build/release.XXXXXX)
+    trap 'rm -rf "$ARTIFACTS_DIR"' EXIT
+    "$(dirname "$0")/collect-release.sh" "$MACHINE" "$ARTIFACTS_DIR"
+fi
 
 upload_asset() {
     local file="$1"
