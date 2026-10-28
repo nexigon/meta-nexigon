@@ -44,8 +44,6 @@ jobs:
   build:
     name: Build
     runs-on: [self-hosted, si-xlarge]
-    # Shared RAUC development signing keys are scoped to this environment.
-    environment: staging
     needs: prepare-build
     env:
       IMAGE_VERSION: ${{ needs.prepare-build.outputs.image-version }}
