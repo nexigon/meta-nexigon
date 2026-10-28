@@ -18,4 +18,4 @@ local_conf_header:
     # Rugix state management takes care of persisting the machine-id.
     NEXIGON_DEVICE_FINGERPRINT = "machine-id"
     # Install Rugix-specific Nexigon tooling.
-    IMAGE_INSTALL:append = " nexigon-rugix-state-conf nexigon-rugix-ota nexigon-rugix-apps"
+    IMAGE_INSTALL:append = " nexigon-rugix-state-conf nexigon-rugix-apps"
