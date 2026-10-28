@@ -31,6 +31,10 @@ with Path(os.environ['CLI_LOG']).open('a') as log:
 if args[:3] == ['repositories', 'assets', 'upload']:
     assert Path(args[4]).is_file(), args[4]
     print(json.dumps({'assetId': 'asset-' + Path(args[4]).name}))
+elif args[:3] == ['repositories', 'versions', 'resolve']:
+    print(json.dumps({'result': 'NotFound'}))
+elif args[:3] == ['repositories', 'versions', 'create']:
+    print(json.dumps({'versionId': 'version-test'}))
 elif args[:4] == ['repositories', 'versions', 'assets', 'add']:
     print('{}')
 else:
@@ -134,6 +138,73 @@ else:
                     "bundleHash": "sha512-256:test-hash",
                 },
             )
+
+    def test_prepare_branch_metadata(self):
+        """Record the Yocto branch and keep build and channel tags distinct."""
+        subprocess.run(
+            ["git", "init", "-b", "scarthgap"],
+            cwd=self.work,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            [
+                "git",
+                "-c",
+                "user.name=Release Test",
+                "-c",
+                "user.email=test@example.invalid",
+                "commit",
+                "--allow-empty",
+                "-m",
+                "Test release",
+            ],
+            cwd=self.work,
+            check=True,
+            capture_output=True,
+        )
+        for source, channel, expected_branch in [
+            ("", None, "scarthgap"),
+            ("main", "latest-pr15", "main"),
+        ]:
+            with self.subTest(source=source):
+                self.log.unlink(missing_ok=True)
+                env = self.env | {"BUILD_TAG": "build-test", "SOURCE_BRANCH": source}
+                env.pop("FLOATING_TAG", None)
+                if channel is not None:
+                    env["FLOATING_TAG"] = channel
+                subprocess.run(
+                    [str(SCRIPTS / "prepare-release.sh")],
+                    cwd=self.work,
+                    env=env,
+                    check=True,
+                    text=True,
+                    capture_output=True,
+                )
+                calls = [json.loads(line) for line in self.log.read_text().splitlines()]
+                create = next(
+                    call
+                    for call in calls
+                    if call[:3] == ["repositories", "versions", "create"]
+                )
+                metadata = json.loads(create[create.index("--metadata") + 1])
+                self.assertEqual(
+                    metadata,
+                    {
+                        "imageVersion": "build-test",
+                        "sourceBranch": expected_branch,
+                    },
+                )
+                tags = [
+                    create[i + 1] for i, value in enumerate(create) if value == "--tag"
+                ]
+                self.assertEqual(
+                    tags,
+                    [
+                        "build-test,locked",
+                        (channel or "latest-scarthgap") + ",reassign",
+                    ],
+                )
 
     def test_transferred_rauc_artifacts(self):
         """Upload RAUC files after the originating build directory is gone."""
