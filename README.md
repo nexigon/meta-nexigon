@@ -44,6 +44,11 @@ a restart policy such as `restart: unless-stopped`. The
 `nexigon.rugix-apps.*` device commands manage app deployments and lifecycle
 through Nexigon.
 
+The QEMU run and test tasks require [Nix](https://nixos.org/download/). They
+obtain QEMU and OVMF, the UEFI firmware used to boot the VM, from Nixpkgs.
+Rugix Testkit gives each VM a writable copy of the firmware variable store,
+which holds UEFI settings and persists across reboots within that VM.
+
 Boot the QEMU image with `mise run run-qemu-x86_64` and SSH in with
 `mise run ssh-qemu`.
 

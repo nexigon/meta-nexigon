@@ -72,14 +72,12 @@ run = './scripts/upload-release.sh "$@"'
 [tasks."run-qemu-x86_64"]
 description = "Run the QEMU x86-64 Rugix image."
 run = '''
-nix_prefix=()
-if command -v nix >/dev/null 2>&1; then
-    nix_prefix=(nix shell nixpkgs#qemu --command)
-fi
-exec "${nix_prefix[@]}" {{ vars.uv_run }} rugix-testkit run --arch x86_64 --ssh-port 2222 \
+set -euo pipefail
+ovmf=$(nix build --no-link --print-out-paths nixpkgs#legacyPackages.x86_64-linux.OVMF.fd)
+exec nix shell nixpkgs#qemu --command {{ vars.uv_run }} rugix-testkit run --arch x86_64 --ssh-port 2222 \
     --drive {{ vars.deploy_dir }}/qemux86-64/core-image-minimal-qemux86-64.rootfs.wic,overlay=true,size=16G \
-    --pflash {{ vars.deploy_dir }}/qemux86-64/ovmf.code.qcow2,format=qcow2,readonly=true \
-    --pflash {{ vars.deploy_dir }}/qemux86-64/ovmf.vars.qcow2,format=qcow2 \
+    --pflash "$ovmf/FV/OVMF_CODE.fd",format=raw,readonly=true \
+    --pflash "$ovmf/FV/OVMF_VARS.fd",format=raw \
     "$@"
 '''
 
@@ -111,11 +109,10 @@ run = 'scp {{ vars.ssh_opts }} -P 2222 "$usage_file" "root@localhost:$usage_dest
 [tasks.test]
 description = "Run all integration tests."
 run = '''
-nix_prefix=()
-if command -v nix >/dev/null 2>&1; then
-    nix_prefix=(nix shell nixpkgs#qemu --command)
-fi
-exec "${nix_prefix[@]}" {{ vars.uv_run }} pytest "$@"
+set -euo pipefail
+OVMF_DIR=$(nix build --no-link --print-out-paths nixpkgs#legacyPackages.x86_64-linux.OVMF.fd)
+export OVMF_DIR
+exec nix shell nixpkgs#qemu --command {{ vars.uv_run }} pytest "$@"
 '''
 
 [tasks.lint]

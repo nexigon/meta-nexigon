@@ -13,8 +13,6 @@ local_conf_header:
     IMAGE_ID = "example-qemu-x86_64-rauc"
     # Filesystem types.
     IMAGE_FSTYPES = "tar.bz2 wic wic.xz"
-    # Build OVMF firmware for QEMU pflash.
-    EXTRA_IMAGEDEPENDS += "ovmf"
     # Use the RAUC-community GRUB config.
     PREFERRED_RPROVIDER_virtual-grub-bootconf = "rauc-qemu-grubconf"
 

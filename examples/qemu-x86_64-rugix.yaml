@@ -16,8 +16,6 @@ local_conf_header:
     # Size of each A/B system partition. On first boot, Rugix adds the second
     # one and a data partition that fills the rest of the disk.
     RUGIX_SYSTEM_SIZE = "2560MiB"
-    # Build OVMF firmware for QEMU pflash.
-    EXTRA_IMAGEDEPENDS += "ovmf"
 
 machine: qemux86-64
 distro: poky
