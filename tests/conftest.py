@@ -16,14 +16,15 @@ from typing import Any
 
 import httpx
 import pytest
-
 from nexigon_hub_sdk import Client
 from nexigon_hub_sdk.api_types import (
     devices,
     digest,
-    json as json_types,
     projects,
     repositories,
+)
+from nexigon_hub_sdk.api_types import (
+    json as json_types,
 )
 from rugix_testkit import Drive, Pflash, VMConfig, VMHandle
 from rugix_testkit.qemu.config import find_free_port

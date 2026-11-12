@@ -3,7 +3,6 @@
 import json
 
 import pytest
-
 from rugix_testkit import VMHandle
 
 
@@ -23,8 +22,10 @@ def test_systemd_status(vm: VMHandle) -> None:
         [
             "sh",
             "-c",
-            'echo \'{"unit":"nexigon-agent.service"}\' '
-            "| /usr/libexec/nexigon/nexigon-systemd-status",
+            (
+                'echo \'{"unit":"nexigon-agent.service"}\' '
+                "| /usr/libexec/nexigon/nexigon-systemd-status"
+            ),
         ],
         hide=True,
     )
@@ -41,8 +42,10 @@ def test_systemd_restart(vm: VMHandle) -> None:
         [
             "sh",
             "-c",
-            'echo \'{"unit":"nexigon-agent.service"}\' '
-            "| /usr/libexec/nexigon/nexigon-systemd-restart",
+            (
+                'echo \'{"unit":"nexigon-agent.service"}\' '
+                "| /usr/libexec/nexigon/nexigon-systemd-restart"
+            ),
         ],
         hide=True,
     )
