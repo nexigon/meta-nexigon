@@ -13,13 +13,12 @@ KAS_TMP_DIR = "{{ get_env(name='KAS_TMP_DIR', default=config_root ~ '/_tmp') }}"
 SSTATE_DIR = "{{ get_env(name='SSTATE_DIR', default=config_root ~ '/cache/sstate-cache') }}"
 DL_DIR = "{{ get_env(name='DL_DIR', default=config_root ~ '/cache/downloads') }}"
 RAUC_KEYS_DIR = "/repo/rauc-keys"
+RUGIX_TESTKIT = "{{ vars.rugix_testkit }}"
 
 [vars]
 # Later versions of rugix-testkit add a pytest plugin for Rugix Bakery projects.
 rugix_testkit = "rugix-testkit @ git+https://github.com/rugix/rugix-testkit.git@5d87153"
-uv_run = "uv run --with '{{ vars.rugix_testkit }}' --with 'nexigon-hub-sdk @ git+https://github.com/nexigon/nexigon-sdk-python.git' --with pytest --with pytest-timeout"
 uv_dev = "uv run --with ruff --with mypy --with pytest --with 'nexigon-hub-sdk @ git+https://github.com/nexigon/nexigon-sdk-python.git' --with '{{ vars.rugix_testkit }}'"
-deploy_dir = "{{ get_env(name='KAS_BUILD_DIR', default=config_root ~ '/build') }}/tmp/deploy/images"
 ssh_opts = "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 rauc_keys_dir = "{{ config_root }}/rauc-keys"
 
@@ -39,19 +38,11 @@ run = 'rm -rf "{{ config_root }}/cache"'
 # glibc, and rust-llvm builds.
 [tasks.kas]
 description = "Run an arbitrary kas-container command."
-run = '''
-mkdir -p "$KAS_WORK_DIR" "$KAS_BUILD_DIR" "$KAS_TMP_DIR"
-chmod 1777 "$KAS_TMP_DIR"
-kas-container --runtime-args "-e IMAGE_VERSION -e NEXIGON_OTA_REPOSITORY -e NEXIGON_OTA_PACKAGE -e NEXIGON_OTA_TAG -e RAUC_KEYS_DIR -e SI_RUNNERS_PREMIRRORS -v $KAS_TMP_DIR:/tmp:rw" "$@"
-'''
+run = 'bash scripts/kas.sh "$@"'
 
 [tasks.build]
 description = "Build a Yocto image with kas-container."
-run = '''
-mkdir -p "$KAS_WORK_DIR" "$KAS_BUILD_DIR" "$KAS_TMP_DIR"
-chmod 1777 "$KAS_TMP_DIR"
-kas-container --runtime-args "-e IMAGE_VERSION -e NEXIGON_OTA_REPOSITORY -e NEXIGON_OTA_PACKAGE -e NEXIGON_OTA_TAG -e RAUC_KEYS_DIR -e SI_RUNNERS_PREMIRRORS -v $KAS_TMP_DIR:/tmp:rw" build "$@"
-'''
+run = 'bash scripts/kas.sh build "$@"'
 
 # ---- release scripts ------------------------------------------------------
 
@@ -70,16 +61,9 @@ run = './scripts/upload-release.sh "$@"'
 # ---- QEMU helpers ---------------------------------------------------------
 
 [tasks."run-qemu-x86_64"]
+shell = "nix develop \"{{config_root}}\" --command bash -euo pipefail -c"
 description = "Run the QEMU x86-64 Rugix image."
-run = '''
-set -euo pipefail
-ovmf=$(nix build --no-link --print-out-paths nixpkgs#legacyPackages.x86_64-linux.OVMF.fd)
-exec nix shell nixpkgs#qemu --command {{ vars.uv_run }} rugix-testkit run --arch x86_64 --ssh-port 2222 \
-    --drive {{ vars.deploy_dir }}/qemux86-64/core-image-minimal-qemux86-64.rootfs.wic,overlay=true,size=16G \
-    --pflash "$ovmf/FV/OVMF_CODE.fd",format=raw,readonly=true \
-    --pflash "$ovmf/FV/OVMF_VARS.fd",format=raw \
-    "$@"
-'''
+run = 'bash scripts/run-qemu.sh "$@"'
 
 [tasks."ssh-qemu"]
 description = "SSH into a running QEMU VM."
@@ -107,13 +91,9 @@ run = 'scp {{ vars.ssh_opts }} -P 2222 "$usage_file" "root@localhost:$usage_dest
 # ---- tests / lint ---------------------------------------------------------
 
 [tasks.test]
+shell = "nix develop \"{{config_root}}\" --command bash -euo pipefail -c"
 description = "Run all integration tests."
-run = '''
-set -euo pipefail
-OVMF_DIR=$(nix build --no-link --print-out-paths nixpkgs#legacyPackages.x86_64-linux.OVMF.fd)
-export OVMF_DIR
-exec nix shell nixpkgs#qemu --command {{ vars.uv_run }} pytest "$@"
-'''
+run = 'bash scripts/test.sh "$@"'
 
 [tasks.lint]
 description = "Run linting and format checking on tests."
@@ -133,6 +113,10 @@ run = [
 description = "Run type checking on tests."
 run = "{{ vars.uv_dev }} mypy tests/"
 
+[tasks."check:scripts"]
+description = "Check development shell scripts."
+run = "nix flake check"
+
 [tasks.check]
 description = "Run all checks (lint, typecheck)."
 depends = ["lint", "typecheck"]
@@ -141,36 +125,4 @@ depends = ["lint", "typecheck"]
 
 [tasks."generate-rauc-keys"]
 description = "Generate development signing keys for RAUC, or write them from RAUC_DEV_* variables."
-run = '''
-set -euo pipefail
-dir="{{ vars.rauc_keys_dir }}"
-# Shared development keys, for example from CI secrets, take precedence.
-if [ -n "${RAUC_DEV_CA_CERT:-}${RAUC_DEV_SIGNING_CERT:-}${RAUC_DEV_SIGNING_KEY:-}" ]; then
-    if [ -z "${RAUC_DEV_CA_CERT:-}" ] || [ -z "${RAUC_DEV_SIGNING_CERT:-}" ] || [ -z "${RAUC_DEV_SIGNING_KEY:-}" ]; then
-        echo "Set all of RAUC_DEV_CA_CERT, RAUC_DEV_SIGNING_CERT, and RAUC_DEV_SIGNING_KEY." >&2
-        exit 1
-    fi
-    mkdir -p "$dir"
-    printf '%s\n' "$RAUC_DEV_CA_CERT" > "$dir/ca.cert.pem"
-    printf '%s\n' "$RAUC_DEV_SIGNING_CERT" > "$dir/development-1.cert.pem"
-    (umask 077 && printf '%s\n' "$RAUC_DEV_SIGNING_KEY" > "$dir/development-1.key.pem")
-    echo "RAUC development keys written to $dir from RAUC_DEV_* variables"
-    exit 0
-fi
-if [ -f "$dir/ca.cert.pem" ]; then
-    echo "Keys already exist in $dir — delete the directory to regenerate."
-    exit 0
-fi
-mkdir -p "$dir"
-openssl req -x509 -newkey rsa:4096 -nodes \
-    -keyout "$dir/ca.key.pem" -out "$dir/ca.cert.pem" \
-    -subj "/CN=Nexigon Dev CA" -days 3650
-openssl req -newkey rsa:4096 -nodes \
-    -keyout "$dir/development-1.key.pem" -out "$dir/development-1.csr.pem" \
-    -subj "/CN=Nexigon Dev Signing Key"
-openssl x509 -req -CAkey "$dir/ca.key.pem" -CA "$dir/ca.cert.pem" \
-    -CAcreateserial -in "$dir/development-1.csr.pem" \
-    -out "$dir/development-1.cert.pem" -days 3650
-rm -f "$dir/development-1.csr.pem" "$dir/ca.srl"
-echo "RAUC development keys generated in $dir"
-'''
+run = "bash scripts/generate-rauc-keys.sh \"{{ vars.rauc_keys_dir }}\""
