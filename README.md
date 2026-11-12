@@ -21,7 +21,10 @@ Using a different update engine? Nexigon Hub provides [composable primitives](ht
 
 ## Getting Started
 
-The examples use [Kas](https://kas.readthedocs.io) for build configuration. Toolchain and tasks are managed with [mise](https://mise.jdx.dev).
+The examples use [Kas](https://kas.readthedocs.io) for build configuration.
+Install [mise](https://mise.jdx.dev/) and Podman, then run `mise install`.
+Set `KAS_CONTAINER_ENGINE=docker` to use Docker instead. RAUC signing-key
+generation also requires OpenSSL. Image builds do not require Nix.
 
 Build an example image:
 
@@ -44,8 +47,10 @@ a restart policy such as `restart: unless-stopped`. The
 `nexigon.rugix-apps.*` device commands manage app deployments and lifecycle
 through Nexigon.
 
-The QEMU run and test tasks require [Nix](https://nixos.org/download/). They
-obtain QEMU and OVMF, the UEFI firmware used to boot the VM, from Nixpkgs.
+The QEMU run and test tasks require [Nix](https://nixos.org/download/) with
+flakes enabled. They
+enter the pinned Nix environment for QEMU and obtain OVMF, the UEFI firmware
+used to boot the VM, from the same Nixpkgs revision.
 Rugix Testkit gives each VM a writable copy of the firmware variable store,
 which holds UEFI settings and persists across reboots within that VM.
 
@@ -55,7 +60,7 @@ Boot the QEMU image with `mise run run-qemu-x86_64` and SSH in with
 The example images contain no credentials. Instead, a device pairs with a project on Nexigon Hub after its first boot. Create a pairing key in the project and send it to the device together with the domain of your Hub. For the QEMU VM, run:
 
 ```sh
-mise run pair-qemu eu.nexigon.cloud,<pairing key>
+mise run pair-qemu "eu.nexigon.cloud,<pairing key>"
 ```
 
 The images also contain no update package, so you choose one for each device under **Configure Updates** in Nexigon Hub. To build a package into the image, set `NEXIGON_OTA_REPOSITORY` and `NEXIGON_OTA_PACKAGE`, for example in a `.env` file.

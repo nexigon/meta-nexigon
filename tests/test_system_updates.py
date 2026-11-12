@@ -10,13 +10,11 @@ import datetime
 from collections.abc import Callable
 from typing import Any
 
+import pytest
+from conftest import OtaTestEnv
 from nexigon_hub_sdk import Client
 from nexigon_hub_sdk.api_types import devices
 from rugix_testkit import VMHandle
-
-import pytest
-
-from conftest import OtaTestEnv
 
 CAPABILITIES = {"window", "retry", "checkpoints", "spread", "hold"}
 

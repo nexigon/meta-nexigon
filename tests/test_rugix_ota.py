@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from rugix_testkit import VMHandle
-
 import pytest
+from rugix_testkit import VMHandle
 
 pytestmark = pytest.mark.rugix
 
