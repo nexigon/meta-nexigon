@@ -7,6 +7,10 @@
 #
 # CI builds also check the image SBOM for known vulnerabilities with
 # sbom-cve-check, which writes a VEX document next to the image.
+#
+# CI only uses deployed files, so recipes remove their work directories once they
+# are done. Most of their files are then deleted before they reach the runner's
+# disk.
 
 header:
   version: 14
@@ -27,3 +31,5 @@ local_conf_header:
     # only fill the mirror.
     BB_GENERATE_MIRROR_TARBALLS:pn-sbom-cve-check-update-cvelist-native = "0"
     BB_GENERATE_MIRROR_TARBALLS:pn-sbom-cve-check-update-nvd-native = "0"
+  ci-rm-work: |
+    INHERIT += "rm_work"
