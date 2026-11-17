@@ -1,6 +1,7 @@
-"""Tests for device commands (systemd, power, rugix-apps)."""
+"""Tests for device commands and the Rugix Apps integration."""
 
 import json
+import tomllib
 
 import pytest
 from rugix_testkit import VMHandle
@@ -65,12 +66,10 @@ def test_power_reboot(vm: VMHandle) -> None:
 
 
 @pytest.mark.rugix
-def test_rugix_apps_dict(vm: VMHandle) -> None:
-    """The list command returns a JSON array (possibly empty)."""
-    result = vm.run(
-        ["/usr/libexec/nexigon/nexigon-rugix-apps", "list"],
-        hide=True,
-    )
-    line = json.loads(result.stdout)
-    assert line["type"] == "Output"
-    assert isinstance(line["data"], dict)
+def test_rugix_apps_integration(vm: VMHandle) -> None:
+    """The agent configuration enables the Rugix Apps integration, and Rugix
+    Ctrl lists the apps that the agent manages."""
+    config = tomllib.loads(vm.run(["cat", "/etc/nexigon/agent.toml"], hide=True).stdout)
+    assert config["integrations"]["rugix"]["apps"]["enabled"] is True
+    result = vm.run(["rugix-ctrl", "apps", "list"], hide=True)
+    assert isinstance(json.loads(result.stdout), dict)
