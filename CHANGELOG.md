@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Remove the `nexigon-rugix-apps` recipe. Nexigon Agent 0.7 manages Rugix Apps
+  itself and provides the `nexigon.rugix-apps.start`, `stop`, `rollback`, and
+  `remove` commands for apps that its configuration does not manage. Remove
+  `nexigon-rugix-apps` from `IMAGE_INSTALL` and enable the integration with
+  `[integrations.rugix.apps]` in `NEXIGON_AGENT_EXTRA_CONF`.
 - Use repository secrets for RAUC development signing keys. Only publishing jobs
   use the staging environment and create staging deployments.
 

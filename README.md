@@ -43,9 +43,11 @@ examples pin a `meta-rugix` revision that provides this integration. Their share
 KAS configuration includes the Apps fragment from `meta-rugix`, which adds
 `meta-virtualization`, Docker Engine, the Compose plugin, Apps boot services, and
 persistent Docker storage. Compose services that should start after reboot need
-a restart policy such as `restart: unless-stopped`. The
-`nexigon.rugix-apps.*` device commands manage app deployments and lifecycle
-through Nexigon.
+a restart policy such as `restart: unless-stopped`. The examples enable the
+Rugix Apps integration of Nexigon Agent through `NEXIGON_AGENT_EXTRA_CONF`. The
+agent installs and updates the apps that the `dev.nexigon.rugix-apps.config`
+property lists and provides commands that start, stop, roll back, and remove
+other apps.
 
 The QEMU run and test tasks require [Nix](https://nixos.org/download/) with
 flakes enabled. They
