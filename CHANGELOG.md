@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Remove `PIDFile` from the `nexigon-agent` service. The Agent does not write
+  the file.
+
 - Use repository secrets for RAUC development signing keys. Only publishing jobs
   use the staging environment and create staging deployments.
 
