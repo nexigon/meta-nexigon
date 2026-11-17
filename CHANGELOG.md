@@ -7,6 +7,8 @@
   `remove` commands for apps that its configuration does not manage. Remove
   `nexigon-rugix-apps` from `IMAGE_INSTALL` and enable the integration with
   `[integrations.rugix.apps]` in `NEXIGON_AGENT_EXTRA_CONF`.
+- Remove `PIDFile` from the `nexigon-agent` service. The Agent does not write
+  the file.
 - Use repository secrets for RAUC development signing keys. Only publishing jobs
   use the staging environment and create staging deployments.
 
