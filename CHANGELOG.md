@@ -21,9 +21,9 @@
   requests from this repository. Git tags no longer trigger builds, uploads, or
   GitHub releases.
 
-- Select the latest Nexigon Agent from `main` by default, using `PV = "0+git"`
-  and an explicit version preference. Release 0.6.1 remains available through
-  `PREFERRED_VERSION_nexigon-agent = "0.6.1"`.
+- Build Nexigon Agent 0.7.0 by default. Set
+  `PREFERRED_VERSION_nexigon-agent = "0+git"` to build the agent from its
+  `main` branch, or `"0.6.1"` for the previous release.
 - Remove the `nexigon-rauc-ota` and `nexigon-rugix-ota` recipes. Replace these
   entries in `IMAGE_INSTALL` with `nexigon-agent-conf`. The configuration package
   now installs the enabled update engine and, for Rugix, the rollback watchdog.
