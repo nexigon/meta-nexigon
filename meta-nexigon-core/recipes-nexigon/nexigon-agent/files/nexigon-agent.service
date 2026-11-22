@@ -4,7 +4,6 @@ After=network.target
 
 [Service]
 Type=exec
-PIDFile=/run/nexigon-agent.pid
 ExecStart=/usr/bin/nexigon-agent run
 Restart=always
 RestartSec=60s
